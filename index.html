@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>이터널 리턴 대회 전적 스코어보드 시스템</title>
+  <title>이터널 리턴 대회 전적 스코어보드</title>
   <style>
     /* 전체 기본 스타일 (Dark Mode) */
     *, *::before, *::after { box-sizing: border-box; }
@@ -20,13 +20,12 @@
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
     
-    /* 관리자 PIN & 공통 업로드 섹션 */
     .pin-section { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
     .pin-section label { font-size: 14px; font-weight: bold; color: #9aa0a6; }
     .pin-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 8px 12px; font-size: 14px; border-radius: 4px; width: 120px; text-align: center; }
     .pin-input:focus { outline: none; border-color: #4da6ff; }
     
-    .upload-container { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 8px; padding: 30px; margin-bottom: 20px; transition: border-color 0.2s; }
+    .upload-container { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 8px; padding: 30px; transition: border-color 0.2s; }
     .upload-container.disabled { opacity: 0.5; pointer-events: none; }
     
     .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
@@ -38,12 +37,12 @@
     .file-status { font-size: 14px; color: #727888; }
     .file-input-btn { background-color: #313747; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: 1px solid #3d4354; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
     .file-input-btn:hover { background-color: #3d4354; }
-    input[type="file"] { display: none; }
+    #csv-file { display: none; }
     
     .server-save-btn { background-color: #4da6ff; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; width: 100%; max-width: 200px; }
     .server-save-btn:hover { background-color: #358ee0; }
     
-    /* 탭 1: 매치 카드 전적 스타일 */
+    /* 탭 1: 매치 카드 전적 조회 디자인 */
     .match-card { background-color: #20222a; border-radius: 6px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); border-left: 6px solid #4da6ff; }
     .match-summary { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; transition: background-color 0.2s; }
     .match-summary:hover { background-color: #262a35; }
@@ -85,20 +84,15 @@
     .replay-save-btn { background-color: #313747; color: #ffffff; border: 1px solid #3d4354; padding: 6px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; }
     .replay-save-btn:hover { background-color: #3d4354; }
 
-    /* 📊 탭 2: 누적 및 개인 평균 계산기 보드 스타일 (이미지 기반 규격) */
-    .board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px; }
-    .board-info { font-size: 13px; color: #727888; font-weight: 500; }
+    /* 📊 탭 2: 누적 데이터 연산 평균 계산기 전용 보드 스타일 */
+    .calc-board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px; }
+    .calc-board-info { font-size: 13px; color: #727888; font-weight: 500; }
     
-    .score-table { width: 100%; border-collapse: collapse; text-align: left; background-color: #1f222b; font-size: 14px; border-radius: 6px; overflow: hidden; border: 1px solid #2d3241; }
-    .score-table th { padding: 14px 16px; color: #727888; font-weight: bold; border-bottom: 1px solid #2d3241; background-color: #1a1c24; font-size: 13px; }
-    .score-table td { padding: 14px 16px; border-bottom: 1px solid #222531; color: #ffffff; vertical-align: middle; }
-    .score-table tr:last-child td { border-bottom: none; }
-    .score-table tr:hover td { background-color: #262a35; }
-    
-    .text-center { text-align: center; }
-    .text-right { text-align: right; }
-    .rank-col { font-weight: 800; width: 60px; color: #ffffff; }
-    .name-col { font-weight: bold; }
+    .calc-score-table { width: 100%; border-collapse: collapse; text-align: left; background-color: #1f222b; font-size: 14px; border-radius: 6px; overflow: hidden; border: 1px solid #2d3241; }
+    .calc-score-table th { padding: 14px 16px; color: #727888; font-weight: bold; border-bottom: 1px solid #2d3241; background-color: #1a1c24; font-size: 13px; }
+    .calc-score-table td { padding: 14px 16px; border-bottom: 1px solid #222531; color: #ffffff; vertical-align: middle; }
+    .calc-score-table tr:last-child td { border-bottom: none; }
+    .calc-score-table tr:hover td { background-color: #262a35; }
     
     .escape-control { display: flex; align-items: center; justify-content: center; gap: 6px; }
     .escape-btn { background-color: #16181d; color: #ffffff; border: 1px solid #3d4354; border-radius: 3px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; font-weight: bold; user-select: none; }
@@ -106,7 +100,7 @@
     .escape-val { min-width: 20px; font-weight: bold; text-align: center; font-size: 13px; }
     
     .score-total { font-weight: bold; font-size: 14px; color: #ffffff; width: 100px; }
-    .score-avg { font-weight: bold; font-size: 14px; color: #ffbc42; width: 110px; } 
+    .score-avg { font-weight: bold; font-size: 14px; color: #ffbc42; width: 110px; }
   </style>
 </head>
 <body>
@@ -118,7 +112,7 @@
   <div class="container">
     <div class="tab-menu">
       <button class="tab-btn active" onclick="switchTab('view')">전적 조회</button>
-      <button class="tab-btn" onclick="switchTab('average')">누적 및 평균 계산기</button>
+      <button class="tab-btn" onclick="switchTab('calculator')">플레이어 평균 스코어</button>
       <button class="tab-btn" onclick="switchTab('upload')">데이터 관리 (CSV/TXT)</button>
     </div>
 
@@ -136,20 +130,12 @@
       </div>
     </div>
 
-    <div id="panel-average" class="tab-panel">
-      <div class="board-header">
-        <div class="board-info" id="board-summary-text">누적 순위 · 총 0판 · 탈출 +3점/회</div>
+    <div id="panel-calculator" class="tab-panel">
+      <div class="calc-board-header">
+        <div class="calc-board-info" id="calc-summary-text">누적 데이터 파싱 · 탈출 조작 활성화 (+3점/회)</div>
       </div>
 
-      <div class="upload-container" style="background-color: #1f222b; padding: 20px; border-radius: 6px; margin-bottom: 16px;">
-        <div class="file-row" style="margin-bottom: 0;">
-          <button class="file-input-btn" onclick="document.getElementById('avg-csv-file').click()">누적용 전적 파일 가져오기</button>
-          <span id="avg-file-status" class="file-status">선택된 파일 없음 (닉네임,판수,탈출,점수 구조)</span>
-          <input type="file" id="avg-csv-file" accept=".csv, .txt" onchange="handleAvgFileSelect(this)">
-        </div>
-      </div>
-
-      <table class="score-table">
+      <table class="calc-score-table">
         <thead>
           <tr>
             <th class="text-center" style="width: 60px;">순위</th>
@@ -160,10 +146,10 @@
             <th class="text-right" style="width: 120px; color: #ffbc42;">평균 점수</th>
           </tr>
         </thead>
-        <tbody id="score-tbody">
+        <tbody id="calc-tbody">
           <tr>
             <td colspan="6" style="text-align: center; color: #727888; padding: 40px 0;">
-              상단의 '누적용 전적 파일 가져오기' 버튼을 통해 결과 파일을 업로드해 주세요.
+              데이터베이스 결과를 불러오는 중이거나 누적 기록이 없습니다.
             </td>
           </tr>
         </tbody>
@@ -209,7 +195,9 @@
     let isAuthorized = false;
     let globalMatchList = [];
     let parsedPlayersCache = null;
-    let playersAvgData = []; // 💡 평균 계산기 전용 독립 데이터 캐시 배열
+    
+    // 💡 실시간 수동 탈출 스탯을 기억할 가상 브라우저 임시 메모리 저장소
+    let memoryEscapeMap = {}; 
 
     // Supabase 정보
     const SUPABASE_URL = "https://dcnqsgcokxvhrdjpfyyo.supabase.co";
@@ -229,6 +217,7 @@
         if (response.ok) {
           globalMatchList = await response.json();
           renderAllMatches();
+          calculateLiveAverages(); // DB 불러올 때 계산기 저장소 세팅
         } else {
           document.getElementById('empty-message').innerText = "데이터베이스 연동 실패. 테이블 설정을 확인하세요.";
         }
@@ -265,7 +254,6 @@
       }
     }
 
-    // 💡 3단 스위칭 탭 전환 제어
     function switchTab(tabId) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
@@ -273,10 +261,10 @@
       if(tabId === 'view') {
         document.querySelectorAll('.tab-btn')[0].classList.add('active');
         document.getElementById('panel-view').classList.add('active');
-      } else if(tabId === 'average') {
+      } else if(tabId === 'calculator') {
         document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('panel-average').classList.add('active');
-        renderAverageScoreboard();
+        document.getElementById('panel-calculator').classList.add('active');
+        calculateLiveAverages(); // 계산기 열릴 때 실시간 재연산 처리
       } else {
         document.querySelectorAll('.tab-btn')[2].classList.add('active');
         document.getElementById('panel-upload').classList.add('active');
@@ -289,7 +277,6 @@
       card.classList.toggle('open');
     }
 
-    // --- 탭 1 & 탭 3 파싱 로직 ---
     function handleFileSelect(input) {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
       const file = input.files[0];
@@ -348,95 +335,91 @@
       parsedPlayersCache = players;
     }
 
-    // --- 📊 탭 2: 누적/평균 점수 계산기 전용 파일 처리 함수 ---
-    function handleAvgFileSelect(input) {
-      const file = input.files[0];
-      if (!file) return;
-
-      document.getElementById('avg-file-status').innerText = file.name + " (연산 완료)";
-      document.getElementById('avg-file-status').style.color = "#4da6ff";
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const lines = e.target.result.split(/\r?\n/);
-        const list = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-
-          const cols = line.split(',');
-          if (cols.length < 4) continue;
-
-          const nickname = cols[0].trim();
-          const matches = parseInt(cols[1].trim()) || 0;
-          const escapes = parseInt(cols[2].trim()) || 0;
-          const rawScore = parseFloat(cols[3].trim()) || 0;
-
-          if (!nickname || nickname === "닉네임") continue;
-
-          list.push({
-            nickname: nickname,
-            matchCount: matches,
-            escapeCount: escapes,
-            baseScore: rawScore 
-          });
-        }
-        playersAvgData = list;
-        renderAverageScoreboard();
-      };
-      reader.readAsText(file, 'utf-8');
-    }
-
-    function updateEscape(index, delta) {
-      if (!playersAvgData[index]) return;
-      let currentEscapes = playersAvgData[index].escapeCount + delta;
-      if (currentEscapes < 0) currentEscapes = 0;
-      playersAvgData[index].escapeCount = currentEscapes;
-      renderAverageScoreboard();
-    }
-
-    function renderAverageScoreboard() {
-      const tbody = document.getElementById('score-tbody');
+    // 📊 [신규 핵심] 올라와 있는 DB 데이터 구조를 직접 분해하여 실시간 평균+탈출 계산 처리
+    function calculateLiveAverages() {
+      const tbody = document.getElementById('calc-tbody');
       if (!tbody) return;
 
-      if (playersAvgData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #727888; padding: 40px 0;">상단의 '누적용 전적 파일 가져오기' 버튼을 통해 결과 파일을 업로드해 주세요.</td></tr>`;
+      if (!globalMatchList || globalMatchList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #727888; padding: 40px 0;">연동된 실시간 매치 이력이 비어 있습니다.</td></tr>`;
         return;
       }
 
-      const calculatedList = playersAvgData.map((p, idx) => {
-        const finalTotalScore = p.baseScore + (p.escapeCount * 3);
-        const averageScore = p.matchCount > 0 ? (finalTotalScore / p.matchCount) : 0;
+      const playerAggMap = {};
+
+      // 1. 이미 데이터베이스에 들어있는 경기를 한 조각씩 루프 돌며 닉네임 단위 분석
+      globalMatchList.forEach(match => {
+        if (!match.players || !Array.isArray(match.players)) return;
+
+        match.players.forEach(p => {
+          if (p.nicknames === "닉네임") return;
+
+          // 팀원 명단(예: "닉네임1, 닉네임2, 닉네임3")을 쉼표/슬래시 등으로 세부 분리
+          const singleNames = p.nicknames.split(/[,/|\s]+/).map(n => n.trim()).filter(n => n.length > 0);
+          const score = parseFloat(p.finalScore) || 0;
+
+          singleNames.forEach(name => {
+            if (!playerAggMap[name]) {
+              playerAggMap[name] = {
+                nickname: name,
+                accumulatedBaseScore: 0,
+                matchCount: 0
+              };
+            }
+            playerAggMap[name].accumulatedBaseScore += score;
+            playerAggMap[name].matchCount += 1;
+          });
+        });
+      });
+
+      // 2. 가상 맵에 없는 신규 유저 탈출값을 0으로 카운트 초기화 세팅
+      Object.keys(playerAggMap).forEach(name => {
+        if (memoryEscapeMap[name] === undefined) {
+          memoryEscapeMap[name] = 0;
+        }
+      });
+
+      // 3. 탈출 연산자 보정치 주입 후 최종 리스트 배열 생성
+      const finalCalculatedList = Object.keys(playerAggMap).map(name => {
+        const p = playerAggMap[name];
+        const currentEscapes = memoryEscapeMap[name] || 0;
+        
+        // 최종 점수 = DB 원본 누적점수 + (수동 가산 탈출 카운트 * 3)
+        const finalTotal = p.accumulatedBaseScore + (currentEscapes * 3);
+        // 최종 평균 = 최종 점수 / 판수
+        const finalAvg = p.matchCount > 0 ? (finalTotal / p.matchCount) : 0;
+
         return {
-          originalIndex: idx,
           nickname: p.nickname,
           matchCount: p.matchCount,
-          escapeCount: p.escapeCount,
-          totalScore: finalTotalScore,
-          averageScore: averageScore
+          escapeCount: currentEscapes,
+          totalScore: finalTotal,
+          averageScore: finalAvg
         };
       });
 
-      calculatedList.sort((a, b) => b.averageScore - a.averageScore);
+      // 4. 평균 스코어 기준 고도 정렬 (내림차순)
+      finalCalculatedList.sort((a, b) => b.averageScore - a.averageScore);
 
-      const totalMatchesArray = playersAvgData.map(p => p.matchCount);
-      const maxMatchCount = totalMatchesArray.length > 0 ? Math.max(...totalMatchesArray) : 0;
-      document.getElementById('board-summary-text').innerText = `누적 순위 · 총 ${maxMatchCount}판 기준 연산 · 탈출 +3점/회`;
-
+      // HTML 가공 드로잉
       tbody.innerHTML = '';
-      calculatedList.forEach((p, idx) => {
+      if (finalCalculatedList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #727888; padding: 40px 0;">유효한 데이터가 존재하지 않습니다.</td></tr>`;
+        return;
+      }
+
+      finalCalculatedList.forEach((p, idx) => {
         const rank = idx + 1;
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td class="text-center rank-col">${rank}</td>
-          <td class="name-col">${p.nickname}</td>
+          <td class="text-center" style="font-weight: 800; color: #4da6ff; width: 60px;">${rank}</td>
+          <td style="font-weight: bold;">${p.nickname}</td>
           <td class="text-center">${p.matchCount}</td>
           <td class="text-center">
             <div class="escape-control">
-              <div class="escape-btn" onclick="updateEscape(${p.originalIndex}, -1)">-</div>
+              <div class="escape-btn" onclick="triggerMemoryEscape('${p.nickname}', -1)">-</div>
               <div class="escape-val">${p.escapeCount}</div>
-              <div class="escape-btn" onclick="updateEscape(${p.originalIndex}, 1)">+</div>
+              <div class="escape-btn" onclick="triggerMemoryEscape('${p.nickname}', 1)">+</div>
             </div>
           </td>
           <td class="text-right score-total">${p.totalScore.toFixed(1)}</td>
@@ -446,7 +429,15 @@
       });
     }
 
-    // --- 데이터베이스 네트워크 함수 구조 유지 ---
+    // 탈출값 변동 시 연산 맵을 수정하고 UI를 갱신시키는 트리거 핸들러
+    function triggerMemoryEscape(name, delta) {
+      if (memoryEscapeMap[name] === undefined) memoryEscapeMap[name] = 0;
+      memoryEscapeMap[name] += delta;
+      if (memoryEscapeMap[name] < 0) memoryEscapeMap[name] = 0; // 최소 예외 방어
+      calculateLiveAverages(); // 갱신 후 즉시 전체 실시간 재정렬 스왑
+    }
+
+    // --- 기존 Supabase 네트워크 함수 구조 완벽 보존 ---
     async function submitDataToDatabase() {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
       const matchTitleValue = document.getElementById('upload-match-title').value.trim();
@@ -485,7 +476,7 @@
           await fetchMatchesFromDB();
           switchTab('view');
         } else {
-          alert("데이터베이스가 요청을 거절했습니다.");
+          alert("데이터베이스가 요청을 거절했습니다. 테이블에 title 열을 추가했는지 점검하세요.");
         }
       } catch (err) {
         alert("통신 장애 발생");
@@ -507,20 +498,22 @@
         if (response.ok) {
           document.getElementById(`replay-badge-${matchId}`).innerText = `🎬 Replay: ${codeValue}`;
           alert("리플레이 코드가 클라우드 데이터베이스에 실시간 기록되었습니다.");
+        } else {
+          alert("리플레이 코드 저장 실패");
         }
       } catch (err) { alert("통신 오류 발생"); }
     }
 
     async function deleteMatch(matchId) {
       if (!isAuthorized) { alert("삭제 권한이 없습니다."); return; }
-      if (!confirm("정말로 이 기록을 삭제하시겠습니까?")) return;
+      if (!confirm("정말로 이 기록을 삭제하시겠습니까?\n이 주소로 접속하는 다른 모든 팀원의 화면에서도 즉시 사라집니다.")) return;
 
       try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
           method: 'DELETE',
           headers: dbHeaders
         });
-        if (response.ok) { await fetchMatchesFromDB(); }
+        if (response.ok) { await fetchMatchesFromDB(); } else { alert("기록 삭제 실패"); }
       } catch (err) { alert("삭제 통신 실패"); }
     }
 
@@ -529,7 +522,7 @@
       container.innerHTML = ''; 
 
       if (globalMatchList.length === 0) {
-        container.innerHTML = `<div id="empty-message" style="text-align: center; color: #727888; padding: 40px 0;">등록된 대전 기록이 없습니다.</div>`;
+        container.innerHTML = `<div id="empty-message" style="text-align: center; color: #727888; padding: 40px 0;">등록된 대전 기록이 없습니다. '데이터 관리' 탭에서 파일을 업로드해주세요.</div>`;
         return;
       }
 
