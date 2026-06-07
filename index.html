@@ -43,9 +43,13 @@
     .match-card { background-color: #20222a; border-radius: 6px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); border-left: 6px solid #4da6ff; }
     .match-summary { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; transition: background-color 0.2s; }
     .match-summary:hover { background-color: #262a35; }
-    .summary-datetime-box { display: flex; flex-direction: column; gap: 2px; }
-    .summary-date { font-size: 16px; font-weight: bold; color: #ffffff; }
-    .summary-time { font-size: 13px; color: #727888; }
+    .summary-datetime-box { display: flex; flex-direction: column; gap: 4px; }
+    
+    /* 💡 매치 라운드 제목 스타일 정의 */
+    .summary-title-text { font-size: 17px; font-weight: 800; color: #4da6ff; letter-spacing: -0.3px; }
+    .summary-date { font-size: 13px; font-weight: normal; color: #9aa0a6; }
+    .summary-time { font-size: 12px; color: #727888; }
+    
     .summary-controls { display: flex; align-items: center; gap: 16px; }
     .replay-badge { background-color: #2d3241; border: 1px solid #3d4354; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: bold; color: #4da6ff; }
     .delete-btn { background-color: #e04a4a; color: #ffffff; border: none; padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; display: none; transition: background-color 0.2s; }
@@ -117,7 +121,12 @@
 
       <div id="upload-zone" class="upload-container disabled">
         <div class="form-group">
-          <label>1. 전적 파일 선택 (확장자가 .txt 여도 내부가 CSV 형식이면 자동 변환됩니다)</label>
+          <label for="upload-match-title">1. 경기 제목 입력</label>
+          <input type="text" id="upload-match-title" class="text-input" placeholder="예: 스크림 1라운드, A조 3경기">
+        </div>
+
+        <div class="form-group">
+          <label>2. 전적 파일 선택</label>
           <div class="file-row">
             <button class="file-input-btn" onclick="document.getElementById('csv-file').click()">파일 찾기</button>
             <span id="file-name-status" class="file-status">선택된 파일 없음</span>
@@ -126,12 +135,12 @@
         </div>
 
         <div class="form-group">
-          <label for="upload-replay-code">2. 해당 매치 리플레이 코드 입력 (선택)</label>
+          <label for="upload-replay-code">3. 해당 매치 리플레이 코드 입력 (선택)</label>
           <input type="text" id="upload-replay-code" class="text-input" placeholder="예: 28471923 (미입력 시 '미등록')">
         </div>
 
         <div style="margin-top: 30px; border-top: 1px solid #2d3241; padding-top: 20px;">
-          <button class="server-save-btn" onclick="submitDataToDatabase()">3. 서버에 전적 저장</button>
+          <button class="server-save-btn" onclick="submitDataToDatabase()">4. 서버에 전적 저장</button>
         </div>
       </div>
     </div>
@@ -157,7 +166,7 @@
 
     async function fetchMatchesFromDB() {
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?order=id.asc`, { headers: dbHeaders });
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?order=id.desc`, { headers: dbHeaders });
         if (response.ok) {
           globalMatchList = await response.json();
           renderAllMatches();
@@ -230,7 +239,6 @@
       reader.readAsText(file, 'utf-8');
     }
 
-    // 💡 [핵심 수정] 글자가 섞인 헤더(제목 줄)를 철저하게 감지하여 걸러내는 엔진
     function parseTextAsCsv(fileText) {
       const lines = fileText.split(/\r?\n/);
       if (lines.length < 2) return;
@@ -250,7 +258,6 @@
         const termScore = columns[4].trim();
         const finalScore = columns[5].trim();
 
-        // 🛡️ 제목 방어선 규칙 추가: 순위 칸에 숫자가 아니거나 '순위', '닉네임', 'NaN' 같은 글자가 보이면 필터링(패스)
         if (
           isNaN(rankStr) || 
           !rankStr || 
@@ -278,7 +285,12 @@
 
     async function submitDataToDatabase() {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
-      if (!parsedPlayersCache || parsedPlayersCache.length === 0) { alert("먼저 전적 파일을 선택해 주세요."); return; }
+      
+      // 제목 입력값 유효성 검사 규칙 추가
+      const matchTitleValue = document.getElementById('upload-match-title').value.trim();
+      if (!matchTitleValue) { alert("경기 제목을 입력해 주세요! (예: 1라운드)"); return; }
+      
+      if (!parsedPlayersCache || parsedPlayersCache.length === 0) { alert("전적 파일을 선택해 주세요."); return; }
 
       const replayCodeValue = document.getElementById('upload-replay-code').value.trim() || "미등록";
 
@@ -286,7 +298,9 @@
       const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
+      // 💡 생성 오브젝트에 title 컬럼 할당
       const newMatch = {
+        title: matchTitleValue,
         date: dateStr,
         time: timeStr,
         replayCode: replayCodeValue,
@@ -305,6 +319,7 @@
           
           parsedPlayersCache = null;
           document.getElementById('csv-file').value = "";
+          document.getElementById('upload-match-title').value = "";
           document.getElementById('upload-replay-code').value = "";
           document.getElementById('file-name-status').innerText = "선택된 파일 없음";
           document.getElementById('file-name-status').style.color = "#727888";
@@ -312,7 +327,7 @@
           await fetchMatchesFromDB();
           switchTab('view');
         } else {
-          alert("데이터베이스가 요청을 거절했습니다.");
+          alert("데이터베이스가 요청을 거절했습니다. 테이블에 title 열을 추가했는지 점검하세요.");
         }
       } catch (err) {
         alert("통신 장애 발생");
@@ -368,7 +383,7 @@
       container.innerHTML = ''; 
 
       if (globalMatchList.length === 0) {
-        container.innerHTML = `<div id="empty-message" style="text-align: center; color: #727888; padding: 40px 0;">등록된 대전 기록이 없습니다. '데이터 관리' 탭에서 CSV 파일을 업로드해주세요.</div>`;
+        container.innerHTML = `<div id="empty-message" style="text-align: center; color: #727888; padding: 40px 0;">등록된 대전 기록이 없습니다. '데이터 관리' 탭에서 파일을 업로드해주세요.</div>`;
         return;
       }
 
@@ -379,12 +394,15 @@
         matchCard.id = `match-card-${match.id}`;
 
         const deleteBtnStyle = isAuthorized ? 'display: block;' : 'display: none;';
+        
+        // 💡 만약 옛날 데이터라 제목(title)이 없다면 날짜 정보를 기본 출력하도록 가변 예외 처리
+        const cardTitle = match.title || `${match.date} 등록 기록`;
 
         let summaryHtml = `
           <div class="match-summary" onclick="toggleMatch(this, event)">
             <div class="summary-datetime-box">
-              <div class="summary-date">${match.date}</div>
-              <div class="summary-time">${match.time} 등록 기록</div>
+              <div class="summary-title-text">${cardTitle}</div>
+              <div class="summary-date">${match.date} <span class="summary-time">(${match.time})</span></div>
             </div>
             <div class="summary-controls">
               <div class="replay-badge" id="replay-badge-${match.id}">🎬 Replay: ${match.replayCode}</div>
@@ -399,7 +417,6 @@
           let rankRowClass = `r-${p.rank}`;
           if (p.rank > 3) rankRowClass = 'r-any';
 
-          // 🛡️ 한 번 더 렌더링 단계에서 방어 (혹시나 들어간 null 값 배제)
           if(p.nicknames === "닉네임") return;
 
           detailHtml += `
