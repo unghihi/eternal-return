@@ -34,7 +34,7 @@
     .file-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
     .file-status { font-size: 14px; color: #727888; }
     .file-input-btn { background-color: #313747; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: 1px solid #3d4354; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
-    .file-input-btn:hover { background-color: #3d4354; }
+    .file-input-btn:hover { background-color: #33d4354; }
     #csv-file { display: none; }
     
     .server-save-btn { background-color: #4da6ff; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; width: 100%; max-width: 200px; }
@@ -117,7 +117,7 @@
 
       <div id="upload-zone" class="upload-container disabled">
         <div class="form-group">
-          <label>1. 전적 파일 선택 (CSV 또는 TXT 둘 다 가능)</label>
+          <label>1. 전적 파일 선택 (확장자가 .txt 여도 내부가 CSV 형식이면 자동 변환됩니다)</label>
           <div class="file-row">
             <button class="file-input-btn" onclick="document.getElementById('csv-file').click()">파일 찾기</button>
             <span id="file-name-status" class="file-status">선택된 파일 없음</span>
@@ -215,7 +215,6 @@
       card.classList.toggle('open');
     }
 
-    // 파일 선택 핸들러 (TXT 파일 호환 반영)
     function handleFileSelect(input) {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
       const file = input.files[0];
@@ -226,14 +225,14 @@
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        parseTextToMemory(e.target.result);
+        // 💡 확장자가 무엇이든 텍스트 자체를 CSV 문법 형식으로 강제 자동 해석하도록 설계
+        parseTextAsCsv(e.target.result);
       };
       reader.readAsText(file, 'utf-8');
     }
 
-    // 파일 내 텍스트 정제 엔진 (텍스트 구조 파싱 보완)
-    function parseTextToMemory(fileText) {
-      // 윈도우/맥 기기별 줄바꿈 문자('\r\n' 또는 '\n') 모두 호환 분리
+    // 💡 텍스트 데이터를 확실하게 CSV 표 형식 문법으로 번역/정제하는 엔진
+    function parseTextAsCsv(fileText) {
       const lines = fileText.split(/\r?\n/);
       if (lines.length < 2) return;
       const players = [];
@@ -242,7 +241,6 @@
         const line = lines[i].trim();
         if (!line) continue;
         
-        // 콤마 구분자 분리
         const columns = line.split(',');
         if (columns.length < 6) continue;
 
@@ -253,7 +251,6 @@
         const termScore = columns[4].trim();
         const finalScore = columns[5].trim();
 
-        // 불량 데이터(NaN) 완벽 패스
         if (rankStr.toLowerCase() === 'nan' || !rankStr || rawNameField.toLowerCase() === 'nan') continue; 
 
         const rank = parseInt(rankStr);
@@ -271,7 +268,6 @@
       parsedPlayersCache = players;
     }
 
-    // 수동 데이터베이스 최종 업로드 함수
     async function submitDataToDatabase() {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
       if (!parsedPlayersCache || parsedPlayersCache.length === 0) { alert("먼저 전적 파일을 선택해 주세요."); return; }
@@ -297,9 +293,8 @@
         });
         
         if (response.ok) {
-          alert("성공적으로 클라우드에 전적이 등록되었습니다!");
+          alert("성공적으로 클라우드 데이터베이스에 저장이 완료되었습니다!");
           
-          // UI 및 메모리 초기화
           parsedPlayersCache = null;
           document.getElementById('csv-file').value = "";
           document.getElementById('upload-replay-code').value = "";
@@ -309,7 +304,7 @@
           await fetchMatchesFromDB();
           switchTab('view');
         } else {
-          alert("데이터베이스가 요청을 거절했습니다. RLS 설정을 확인하세요.");
+          alert("데이터베이스가 요청을 거절했습니다. 테이블의 RLS 비활성화 여부를 점검하세요.");
         }
       } catch (err) {
         alert("통신 장애 발생");
