@@ -34,7 +34,7 @@
     .file-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
     .file-status { font-size: 14px; color: #727888; }
     .file-input-btn { background-color: #313747; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: 1px solid #3d4354; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
-    .file-input-btn:hover { background-color: #33d4354; }
+    .file-input-btn:hover { background-color: #3d4354; }
     #csv-file { display: none; }
     
     .server-save-btn { background-color: #4da6ff; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; width: 100%; max-width: 200px; }
@@ -225,13 +225,12 @@
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        // 💡 확장자가 무엇이든 텍스트 자체를 CSV 문법 형식으로 강제 자동 해석하도록 설계
         parseTextAsCsv(e.target.result);
       };
       reader.readAsText(file, 'utf-8');
     }
 
-    // 💡 텍스트 데이터를 확실하게 CSV 표 형식 문법으로 번역/정제하는 엔진
+    // 💡 [핵심 수정] 글자가 섞인 헤더(제목 줄)를 철저하게 감지하여 걸러내는 엔진
     function parseTextAsCsv(fileText) {
       const lines = fileText.split(/\r?\n/);
       if (lines.length < 2) return;
@@ -251,7 +250,16 @@
         const termScore = columns[4].trim();
         const finalScore = columns[5].trim();
 
-        if (rankStr.toLowerCase() === 'nan' || !rankStr || rawNameField.toLowerCase() === 'nan') continue; 
+        // 🛡️ 제목 방어선 규칙 추가: 순위 칸에 숫자가 아니거나 '순위', '닉네임', 'NaN' 같은 글자가 보이면 필터링(패스)
+        if (
+          isNaN(rankStr) || 
+          !rankStr || 
+          rankStr.toLowerCase() === 'nan' || 
+          rawNameField.toLowerCase() === 'nan' || 
+          rawNameField.includes("닉네임")
+        ) {
+          continue; 
+        }
 
         const rank = parseInt(rankStr);
         let nicknames = rawNameField;
@@ -304,7 +312,7 @@
           await fetchMatchesFromDB();
           switchTab('view');
         } else {
-          alert("데이터베이스가 요청을 거절했습니다. 테이블의 RLS 비활성화 여부를 점검하세요.");
+          alert("데이터베이스가 요청을 거절했습니다.");
         }
       } catch (err) {
         alert("통신 장애 발생");
@@ -390,6 +398,9 @@
         players.forEach(p => {
           let rankRowClass = `r-${p.rank}`;
           if (p.rank > 3) rankRowClass = 'r-any';
+
+          // 🛡️ 한 번 더 렌더링 단계에서 방어 (혹시나 들어간 null 값 배제)
+          if(p.nicknames === "닉네임") return;
 
           detailHtml += `
             <div class="player-row ${rankRowClass}">
