@@ -23,7 +23,6 @@
     .pin-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 8px 12px; font-size: 14px; border-radius: 4px; width: 120px; text-align: center; }
     .pin-input:focus { outline: none; border-color: #4da6ff; }
     
-    /* 💡 데이터 관리 구역 레이아웃 고도화 */
     .upload-container { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 8px; padding: 30px; transition: border-color 0.2s; }
     .upload-container.disabled { opacity: 0.5; pointer-events: none; }
     
@@ -38,7 +37,6 @@
     .file-input-btn:hover { background-color: #3d4354; }
     #csv-file { display: none; }
     
-    /* 수동 최종 저장 버튼 스타일 */
     .server-save-btn { background-color: #4da6ff; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; width: 100%; max-width: 200px; }
     .server-save-btn:hover { background-color: #358ee0; }
     
@@ -93,7 +91,7 @@
   <div class="container">
     <div class="tab-menu">
       <button class="tab-btn active" onclick="switchTab('view')">전적 조회</button>
-      <button class="tab-btn" onclick="switchTab('upload')">데이터 관리 (CSV)</button>
+      <button class="tab-btn" onclick="switchTab('upload')">데이터 관리 (CSV/TXT)</button>
     </div>
 
     <div id="panel-view" class="tab-panel active">
@@ -119,11 +117,11 @@
 
       <div id="upload-zone" class="upload-container disabled">
         <div class="form-group">
-          <label>1. 전적 CSV 파일 선택</label>
+          <label>1. 전적 파일 선택 (CSV 또는 TXT 둘 다 가능)</label>
           <div class="file-row">
             <button class="file-input-btn" onclick="document.getElementById('csv-file').click()">파일 찾기</button>
             <span id="file-name-status" class="file-status">선택된 파일 없음</span>
-            <input type="file" id="csv-file" accept=".csv" onchange="handleCsvSelect(this)">
+            <input type="file" id="csv-file" accept=".csv, .txt" onchange="handleFileSelect(this)">
           </div>
         </div>
 
@@ -143,8 +141,6 @@
     const MASTER_PIN = "12973";
     let isAuthorized = false;
     let globalMatchList = [];
-    
-    // 임시로 파싱된 플레이어 데이터를 들고 있을 저장소
     let parsedPlayersCache = null;
 
     // Supabase 정보
@@ -219,8 +215,8 @@
       card.classList.toggle('open');
     }
 
-    // 💡 [변경] 파일 선택 시 바로 저장하지 않고, 텍스트 파싱 처리만 해서 변수에 올려둠
-    function handleCsvSelect(input) {
+    // 파일 선택 핸들러 (TXT 파일 호환 반영)
+    function handleFileSelect(input) {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
       const file = input.files[0];
       if (!file) return;
@@ -230,20 +226,23 @@
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        parseCsvToMemory(e.target.result);
+        parseTextToMemory(e.target.result);
       };
       reader.readAsText(file, 'utf-8');
     }
 
-    // CSV 파일 데이터를 정제해서 메모리(parsedPlayersCache)에 대기시키는 함수
-    function parseCsvToMemory(csvText) {
-      const lines = csvText.split(/\r?\n/);
+    // 파일 내 텍스트 정제 엔진 (텍스트 구조 파싱 보완)
+    function parseTextToMemory(fileText) {
+      // 윈도우/맥 기기별 줄바꿈 문자('\r\n' 또는 '\n') 모두 호환 분리
+      const lines = fileText.split(/\r?\n/);
       if (lines.length < 2) return;
       const players = [];
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
+        
+        // 콤마 구분자 분리
         const columns = line.split(',');
         if (columns.length < 6) continue;
 
@@ -254,6 +253,7 @@
         const termScore = columns[4].trim();
         const finalScore = columns[5].trim();
 
+        // 불량 데이터(NaN) 완벽 패스
         if (rankStr.toLowerCase() === 'nan' || !rankStr || rawNameField.toLowerCase() === 'nan') continue; 
 
         const rank = parseInt(rankStr);
@@ -268,23 +268,20 @@
       }
       players.sort((a, b) => a.rank - b.rank);
       
-      // 전역 임시 캐시에 저장
       parsedPlayersCache = players;
     }
 
-    // 💡 [신설] 버튼을 직접 눌렀을 때 실행되는 최종 수동 전송 함수
+    // 수동 데이터베이스 최종 업로드 함수
     async function submitDataToDatabase() {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
-      if (!parsedPlayersCache || parsedPlayersCache.length === 0) { alert("먼저 전적 CSV 파일을 선택해 주세요."); return; }
+      if (!parsedPlayersCache || parsedPlayersCache.length === 0) { alert("먼저 전적 파일을 선택해 주세요."); return; }
 
-      // 입력한 리플레이 코드 값 추출 (안적었으면 미등록)
       const replayCodeValue = document.getElementById('upload-replay-code').value.trim() || "미등록";
 
       const now = new Date();
       const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-      // 최종 업로드할 데이터 묶음 오브젝트 생성
       const newMatch = {
         date: dateStr,
         time: timeStr,
@@ -300,20 +297,19 @@
         });
         
         if (response.ok) {
-          alert("성공적으로 데이터베이스에 저장되었습니다!");
+          alert("성공적으로 클라우드에 전적이 등록되었습니다!");
           
-          // 입력 폼 컴포넌트 초기화
+          // UI 및 메모리 초기화
           parsedPlayersCache = null;
           document.getElementById('csv-file').value = "";
           document.getElementById('upload-replay-code').value = "";
           document.getElementById('file-name-status').innerText = "선택된 파일 없음";
           document.getElementById('file-name-status').style.color = "#727888";
 
-          // 전적 리스트 리로드 후 이동
           await fetchMatchesFromDB();
           switchTab('view');
         } else {
-          alert("서버 저장 요청이 거부되었습니다.");
+          alert("데이터베이스가 요청을 거절했습니다. RLS 설정을 확인하세요.");
         }
       } catch (err) {
         alert("통신 장애 발생");
