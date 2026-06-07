@@ -18,19 +18,29 @@
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
     
-    /* PIN 인증 폼 스타일 (토큰 칸이 빠져서 컴팩트해짐) */
     .pin-section { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
     .pin-section label { font-size: 14px; font-weight: bold; color: #9aa0a6; }
     .pin-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 8px 12px; font-size: 14px; border-radius: 4px; width: 120px; text-align: center; }
     .pin-input:focus { outline: none; border-color: #4da6ff; }
     
-    .upload-container { background-color: #1f222b; border: 2px dashed #3d4354; border-radius: 8px; padding: 40px 20px; text-align: center; transition: border-color 0.2s; }
+    /* 💡 데이터 관리 구역 레이아웃 고도화 */
+    .upload-container { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 8px; padding: 30px; transition: border-color 0.2s; }
     .upload-container.disabled { opacity: 0.5; pointer-events: none; }
-    .upload-container:not(.disabled):hover { border-color: #4da6ff; }
-    .upload-container p { color: #9aa0a6; margin: 0 0 16px 0; font-size: 15px; }
-    .file-input-btn { background-color: #4da6ff; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
-    .file-input-btn:hover { background-color: #358ee0; }
+    
+    .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .form-group label { font-size: 14px; font-weight: bold; color: #9aa0a6; }
+    .text-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 10px 14px; font-size: 14px; border-radius: 4px; width: 100%; max-width: 300px; }
+    .text-input:focus { outline: none; border-color: #4da6ff; }
+    
+    .file-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .file-status { font-size: 14px; color: #727888; }
+    .file-input-btn { background-color: #313747; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: 1px solid #3d4354; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+    .file-input-btn:hover { background-color: #3d4354; }
     #csv-file { display: none; }
+    
+    /* 수동 최종 저장 버튼 스타일 */
+    .server-save-btn { background-color: #4da6ff; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; width: 100%; max-width: 200px; }
+    .server-save-btn:hover { background-color: #358ee0; }
     
     .match-card { background-color: #20222a; border-radius: 6px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); border-left: 6px solid #4da6ff; }
     .match-summary { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; transition: background-color 0.2s; }
@@ -108,9 +118,23 @@
       </div>
 
       <div id="upload-zone" class="upload-container disabled">
-        <p>대회 결과 CSV 파일을 업로드하세요.</p>
-        <button class="file-input-btn" onclick="document.getElementById('csv-file').click()">CSV 파일 선택</button>
-        <input type="file" id="csv-file" accept=".csv" onchange="handleCsvUpload(this)">
+        <div class="form-group">
+          <label>1. 전적 CSV 파일 선택</label>
+          <div class="file-row">
+            <button class="file-input-btn" onclick="document.getElementById('csv-file').click()">파일 찾기</button>
+            <span id="file-name-status" class="file-status">선택된 파일 없음</span>
+            <input type="file" id="csv-file" accept=".csv" onchange="handleCsvSelect(this)">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="upload-replay-code">2. 해당 매치 리플레이 코드 입력 (선택)</label>
+          <input type="text" id="upload-replay-code" class="text-input" placeholder="예: 28471923 (미입력 시 '미등록')">
+        </div>
+
+        <div style="margin-top: 30px; border-top: 1px solid #2d3241; padding-top: 20px;">
+          <button class="server-save-btn" onclick="submitDataToDatabase()">3. 서버에 전적 저장</button>
+        </div>
       </div>
     </div>
   </div>
@@ -119,8 +143,11 @@
     const MASTER_PIN = "12973";
     let isAuthorized = false;
     let globalMatchList = [];
+    
+    // 임시로 파싱된 플레이어 데이터를 들고 있을 저장소
+    let parsedPlayersCache = null;
 
-    // Supabase 연동 정보
+    // Supabase 정보
     const SUPABASE_URL = "https://dcnqsgcokxvhrdjpfyyo.supabase.co";
     const SUPABASE_KEY = "sb_publishable__5Q68Rr_aCX_XjB855tQIQ_L1ifaMJw";
 
@@ -132,7 +159,6 @@
 
     window.addEventListener('DOMContentLoaded', fetchMatchesFromDB);
 
-    // DB 데이터 로드
     async function fetchMatchesFromDB() {
       try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?order=id.asc`, { headers: dbHeaders });
@@ -147,7 +173,6 @@
       }
     }
 
-    // PIN 번호 검증 (토큰 검사 로직 완전히 들어냄)
     function checkGlobalPin() {
       const pinView = document.getElementById('admin-pin-view').value;
       const pinUpload = document.getElementById('admin-pin-upload').value;
@@ -194,19 +219,24 @@
       card.classList.toggle('open');
     }
 
-    function handleCsvUpload(input) {
+    // 💡 [변경] 파일 선택 시 바로 저장하지 않고, 텍스트 파싱 처리만 해서 변수에 올려둠
+    function handleCsvSelect(input) {
       if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
       const file = input.files[0];
       if (!file) return;
+
+      document.getElementById('file-name-status').innerText = file.name + " (분석 완료)";
+      document.getElementById('file-name-status').style.color = "#4da6ff";
+
       const reader = new FileReader();
       reader.onload = function(e) {
-        processCsvData(e.target.result);
-        input.value = ""; 
+        parseCsvToMemory(e.target.result);
       };
       reader.readAsText(file, 'utf-8');
     }
 
-    async function processCsvData(csvText) {
+    // CSV 파일 데이터를 정제해서 메모리(parsedPlayersCache)에 대기시키는 함수
+    function parseCsvToMemory(csvText) {
       const lines = csvText.split(/\r?\n/);
       if (lines.length < 2) return;
       const players = [];
@@ -237,39 +267,59 @@
         players.push({ rank, nicknames, teamName, rankScore, killScore, termScore, finalScore });
       }
       players.sort((a, b) => a.rank - b.rank);
+      
+      // 전역 임시 캐시에 저장
+      parsedPlayersCache = players;
+    }
 
-      if (players.length > 0) {
-        const now = new Date();
-        const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    // 💡 [신설] 버튼을 직접 눌렀을 때 실행되는 최종 수동 전송 함수
+    async function submitDataToDatabase() {
+      if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
+      if (!parsedPlayersCache || parsedPlayersCache.length === 0) { alert("먼저 전적 CSV 파일을 선택해 주세요."); return; }
 
-        const newMatch = {
-          date: dateStr,
-          time: timeStr,
-          replayCode: "미등록",
-          players: players
-        };
+      // 입력한 리플레이 코드 값 추출 (안적었으면 미등록)
+      const replayCodeValue = document.getElementById('upload-replay-code').value.trim() || "미등록";
 
-        try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/matches`, {
-            method: 'POST',
-            headers: dbHeaders,
-            body: JSON.stringify(newMatch)
-          });
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+      // 최종 업로드할 데이터 묶음 오브젝트 생성
+      const newMatch = {
+        date: dateStr,
+        time: timeStr,
+        replayCode: replayCodeValue,
+        players: parsedPlayersCache
+      };
+
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches`, {
+          method: 'POST',
+          headers: dbHeaders,
+          body: JSON.stringify(newMatch)
+        });
+        
+        if (response.ok) {
+          alert("성공적으로 데이터베이스에 저장되었습니다!");
           
-          if (response.ok) {
-            await fetchMatchesFromDB();
-            switchTab('view');
-          } else {
-            alert("DB 저장 실패. Supabase 테이블 설정을 확인하세요.");
-          }
-        } catch (err) {
-          alert("통신 장애 발생");
+          // 입력 폼 컴포넌트 초기화
+          parsedPlayersCache = null;
+          document.getElementById('csv-file').value = "";
+          document.getElementById('upload-replay-code').value = "";
+          document.getElementById('file-name-status').innerText = "선택된 파일 없음";
+          document.getElementById('file-name-status').style.color = "#727888";
+
+          // 전적 리스트 리로드 후 이동
+          await fetchMatchesFromDB();
+          switchTab('view');
+        } else {
+          alert("서버 저장 요청이 거부되었습니다.");
         }
+      } catch (err) {
+        alert("통신 장애 발생");
       }
     }
 
-    // 리플레이 코드 DB 저장 (토큰 없이 PIN 인증만으로 처리)
     async function saveReplayCode(matchId) {
       if (!isAuthorized) { alert("리플레이 등록 권한이 없습니다."); return; }
       const inputElement = document.getElementById(`replay-input-${matchId}`);
@@ -294,7 +344,6 @@
       }
     }
 
-    // 매치 데이터 삭제 (토큰 없이 PIN 인증만으로 처리)
     async function deleteMatch(matchId) {
       if (!isAuthorized) { alert("삭제 권한이 없습니다."); return; }
       if (!confirm("정말로 이 기록을 삭제하시겠습니까?\n이 주소로 접속하는 다른 모든 팀원의 화면에서도 즉시 사라집니다.")) return;
