@@ -84,13 +84,13 @@
     .replay-save-btn { background-color: #313747; color: #ffffff; border: 1px solid #3d4354; padding: 6px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; }
     .replay-save-btn:hover { background-color: #3d4354; }
 
-    /* 📊 새로 추가된 평균 점수 탭 전용 스타일 */
+    /* 📊 플레이어 개인 평균 점수 탭 스타일 */
     .stats-table { width: 100%; border-collapse: collapse; background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; overflow: hidden; }
     .stats-table th { background-color: #2d3241; color: #9aa0a6; padding: 12px 16px; font-size: 14px; text-align: left; font-weight: bold; }
     .stats-table td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #2d3241; color: #ffffff; }
     .stats-table tr:last-child td { border-bottom: none; }
     .stats-table tr:hover td { background-color: #262a35; }
-    .rank-num { font-weight: bold; color: #4da6ff; width: 50px; }
+    .rank-num { font-weight: bold; color: #4da6ff; width: 60px; }
     .text-right { text-align: right; }
     .text-center { text-align: center; }
     .highlight-avg { font-weight: bold; color: #ffbc42; }
@@ -105,7 +105,7 @@
   <div class="container">
     <div class="tab-menu">
       <button class="tab-btn active" onclick="switchTab('view')">전적 조회</button>
-      <button class="tab-btn" onclick="switchTab('average')">팀 평균 스코어</button>
+      <button class="tab-btn" onclick="switchTab('average')">플레이어 평균 스코어</button>
       <button class="tab-btn" onclick="switchTab('upload')">데이터 관리 (CSV/TXT)</button>
     </div>
 
@@ -125,16 +125,16 @@
 
     <div id="panel-average" class="tab-panel">
       <div style="margin-bottom: 16px; color: #9aa0a6; font-size: 14px;">
-        ※ 현재까지 누적된 모든 매치 데이터를 바탕으로 팀별 평균 점수를 실시간 계산합니다. (참가 라운드가 많을수록 정확합니다)
+        ※ 대전 데이터 내의 스쿼드 멤버들을 개별 플레이어로 분리하여 1인당 평균 획득 점수를 실시간으로 계산합니다.
       </div>
       <table class="stats-table">
         <thead>
           <tr>
             <th class="text-center" style="width: 70px;">순위</th>
-            <th>팀명 / 플레이어</th>
-            <th class="text-right" style="width: 100px;">총 판수</th>
-            <th class="text-right" style="width: 120px;">총 누적 점수</th>
-            <th class="text-right highlight-avg" style="width: 140px;">라운드별 평균</th>
+            <th>플레이어 닉네임</th>
+            <th class="text-right" style="width: 100px;">참가 판수</th>
+            <th class="text-right" style="width: 120px;">총 획득 점수</th>
+            <th class="text-right highlight-avg" style="width: 140px;">개인 평균 점수</th>
           </tr>
         </thead>
         <tbody id="average-stats-tbody">
@@ -203,7 +203,7 @@
         if (response.ok) {
           globalMatchList = await response.json();
           renderAllMatches();
-          calculateAndRenderAverages(); // 💡 데이터를 받아올 때 평균 탭도 함께 계산하도록 추가
+          calculateAndRenderAverages();
         } else {
           document.getElementById('empty-message').innerText = "데이터베이스 연동 실패. 테이블 설정을 확인하세요.";
         }
@@ -240,7 +240,6 @@
       }
     }
 
-    // 💡 3개의 탭 전환을 지원하도록 탭 스위칭 함수 보완
     function switchTab(tabId) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
@@ -251,7 +250,7 @@
       } else if(tabId === 'average') {
         document.querySelectorAll('.tab-btn')[1].classList.add('active');
         document.getElementById('panel-average').classList.add('active');
-        calculateAndRenderAverages(); // 탭을 누를 때 최신 데이터를 기반으로 다시 연산
+        calculateAndRenderAverages(); 
       } else {
         document.querySelectorAll('.tab-btn')[2].classList.add('active');
         document.getElementById('panel-upload').classList.add('active');
@@ -488,7 +487,7 @@
       });
     }
 
-    // 📊 [신규 함수] 팀별 평균 스코어를 연산하고 테이블을 빌드하는 뷰 로직
+    // 📊 [수정된 함수] 플레이어 단위로 완전히 쪼개서 실시간 평균 스코어를 연산하는 뷰 로직
     function calculateAndRenderAverages() {
       const tbody = document.getElementById('average-stats-tbody');
       if (!tbody) return;
@@ -498,8 +497,7 @@
         return;
       }
 
-      // 1. 모든 경기를 순회하며 팀명(key)별로 점수 누적합 연산
-      const teamStatsMap = {};
+      const playerStatsMap = {};
 
       globalMatchList.forEach(match => {
         if (!match.players || !Array.isArray(match.players)) return;
@@ -507,55 +505,56 @@
         match.players.forEach(p => {
           if (p.nicknames === "닉네임") return;
           
-          // 고유 식별 기준으로 '팀명'을 사용하되, '개인 참가'일 경우 중복 방지를 위해 닉네임을 키값으로 설정합니다.
-          const key = (p.teamName && p.teamName !== "개인 참가") ? p.teamName : p.nicknames;
+          // 💡 핵심: 닉네임 문자열에 여러 명(예: 공룡,토끼,사자)이 있을 수 있으므로 공백/특수문자를 정제하고 쪼갭니다.
+          // 일반적으로 이터널 리턴 스쿼드 전적은 쉼표나 슬래시, 혹은 공백으로 구분되므로 정규식을 사용하여 플레이어를 분리합니다.
+          const singleNames = p.nicknames.split(/[,/|\s]+/).map(name => name.trim()).filter(name => name.length > 0);
           const score = parseFloat(p.finalScore) || 0;
 
-          if (!teamStatsMap[key]) {
-            teamStatsMap[key] = {
-              teamName: p.teamName,
-              nicknames: p.nicknames,
-              totalScore: 0,
-              matchCount: 0
-            };
-          }
-          
-          teamStatsMap[key].totalScore += score;
-          teamStatsMap[key].matchCount += 1;
+          singleNames.forEach(name => {
+            if (!playerStatsMap[name]) {
+              playerStatsMap[name] = {
+                playerName: name,
+                totalScore: 0,
+                matchCount: 0
+              };
+            }
+            // 스쿼드가 획득한 총점을 멤버들이 각각 동일하게 부여받아 누적 연산합니다.
+            playerStatsMap[name].totalScore += score;
+            playerStatsMap[name].matchCount += 1;
+          });
         });
       });
 
-      // 2. Map 오브젝트를 배열로 변환하고 평균값(Average) 산출
-      const teamStatsList = Object.keys(teamStatsMap).map(key => {
-        const team = teamStatsMap[key];
-        const avg = team.matchCount > 0 ? (team.totalScore / team.matchCount) : 0;
+      // Map 오브젝트를 배열 리스트로 변환하고 플레이어별 1판당 평균 점수 산출
+      const playerStatsList = Object.keys(playerStatsMap).map(key => {
+        const player = playerStatsMap[key];
+        const avg = player.matchCount > 0 ? (player.totalScore / player.matchCount) : 0;
         return {
-          ...team,
-          displayName: team.teamName !== "개인 참가" ? `${team.teamName} (${team.nicknames})` : team.nicknames,
+          ...player,
           averageScore: avg
         };
       });
 
-      // 3. 평균 점수 기준 내림차순(높은 순) 정렬
-      teamStatsList.sort((a, b) => b.averageScore - a.averageScore);
+      // 평균 점수가 높은 순으로 내림차순 정렬
+      playerStatsList.sort((a, b) => b.averageScore - a.averageScore);
 
-      // 4. HTML 데이터 동적 렌더링
+      // HTML 데이터 동적 생성 및 출력
       tbody.innerHTML = '';
-      if (teamStatsList.length === 0) {
+      if (playerStatsList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #727888; padding: 40px 0;">분석할 수 있는 유효한 플레이어 기록이 없습니다.</td></tr>`;
         return;
       }
 
-      teamStatsList.forEach((team, index) => {
+      playerStatsList.forEach((player, index) => {
         const rank = index + 1;
         const row = document.createElement('tr');
         
         row.innerHTML = `
           <td class="text-center rank-num">${rank}</td>
-          <td><div style="font-weight:bold; color:#fff;">${team.displayName}</div></td>
-          <td class="text-right" style="color:#9aa0a6;">${team.matchCount} 판</td>
-          <td class="text-right" style="font-weight:500;">${team.totalScore} 점</td>
-          <td class="text-right highlight-avg">${team.averageScore.toFixed(2)} 점</td>
+          <td><div style="font-weight:bold; color:#fff;">${player.playerName}</div></td>
+          <td class="text-right" style="color:#9aa0a6;">${player.matchCount} 판</td>
+          <td class="text-right" style="font-weight:500;">${player.totalScore} 점</td>
+          <td class="text-right highlight-avg">${player.averageScore.toFixed(2)} 점</td>
         `;
         tbody.appendChild(row);
       });
