@@ -132,7 +132,7 @@
 
     <div id="panel-calculator" class="tab-panel">
       <div class="calc-board-header">
-        <div class="calc-board-info" id="calc-summary-text">누적 데이터 파싱 · 탈출 조작 활성화 (+3점/회)</div>
+        <div class="calc-board-info" id="calc-summary-text">누적 데이터 파싱 · 탈출 조작 (인증 필요, +3점/회)</div>
       </div>
 
       <table class="calc-score-table">
@@ -195,8 +195,6 @@
     let isAuthorized = false;
     let globalMatchList = [];
     let parsedPlayersCache = null;
-    
-    // 💡 실시간 수동 탈출 스탯을 기억할 가상 브라우저 임시 메모리 저장소
     let memoryEscapeMap = {}; 
 
     // Supabase 정보
@@ -217,7 +215,7 @@
         if (response.ok) {
           globalMatchList = await response.json();
           renderAllMatches();
-          calculateLiveAverages(); // DB 불러올 때 계산기 저장소 세팅
+          calculateLiveAverages();
         } else {
           document.getElementById('empty-message').innerText = "데이터베이스 연동 실패. 테이블 설정을 확인하세요.";
         }
@@ -264,7 +262,7 @@
       } else if(tabId === 'calculator') {
         document.querySelectorAll('.tab-btn')[1].classList.add('active');
         document.getElementById('panel-calculator').classList.add('active');
-        calculateLiveAverages(); // 계산기 열릴 때 실시간 재연산 처리
+        calculateLiveAverages();
       } else {
         document.querySelectorAll('.tab-btn')[2].classList.add('active');
         document.getElementById('panel-upload').classList.add('active');
@@ -335,7 +333,6 @@
       parsedPlayersCache = players;
     }
 
-    // 📊 [신규 핵심] 올라와 있는 DB 데이터 구조를 직접 분해하여 실시간 평균+탈출 계산 처리
     function calculateLiveAverages() {
       const tbody = document.getElementById('calc-tbody');
       if (!tbody) return;
@@ -347,14 +344,12 @@
 
       const playerAggMap = {};
 
-      // 1. 이미 데이터베이스에 들어있는 경기를 한 조각씩 루프 돌며 닉네임 단위 분석
       globalMatchList.forEach(match => {
         if (!match.players || !Array.isArray(match.players)) return;
 
         match.players.forEach(p => {
           if (p.nicknames === "닉네임") return;
 
-          // 팀원 명단(예: "닉네임1, 닉네임2, 닉네임3")을 쉼표/슬래시 등으로 세부 분리
           const singleNames = p.nicknames.split(/[,/|\s]+/).map(n => n.trim()).filter(n => n.length > 0);
           const score = parseFloat(p.finalScore) || 0;
 
@@ -372,21 +367,16 @@
         });
       });
 
-      // 2. 가상 맵에 없는 신규 유저 탈출값을 0으로 카운트 초기화 세팅
       Object.keys(playerAggMap).forEach(name => {
         if (memoryEscapeMap[name] === undefined) {
           memoryEscapeMap[name] = 0;
         }
       });
 
-      // 3. 탈출 연산자 보정치 주입 후 최종 리스트 배열 생성
       const finalCalculatedList = Object.keys(playerAggMap).map(name => {
         const p = playerAggMap[name];
         const currentEscapes = memoryEscapeMap[name] || 0;
-        
-        // 최종 점수 = DB 원본 누적점수 + (수동 가산 탈출 카운트 * 3)
         const finalTotal = p.accumulatedBaseScore + (currentEscapes * 3);
-        // 최종 평균 = 최종 점수 / 판수
         const finalAvg = p.matchCount > 0 ? (finalTotal / p.matchCount) : 0;
 
         return {
@@ -398,10 +388,8 @@
         };
       });
 
-      // 4. 평균 스코어 기준 고도 정렬 (내림차순)
       finalCalculatedList.sort((a, b) => b.averageScore - a.averageScore);
 
-      // HTML 가공 드로잉
       tbody.innerHTML = '';
       if (finalCalculatedList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #727888; padding: 40px 0;">유효한 데이터가 존재하지 않습니다.</td></tr>`;
@@ -429,12 +417,17 @@
       });
     }
 
-    // 탈출값 변동 시 연산 맵을 수정하고 UI를 갱신시키는 트리거 핸들러
+    // 💡 [수정 조건 추가]: 탈출 스코어를 변동시킬 때 관리자 권한(isAuthorized) 검증
     function triggerMemoryEscape(name, delta) {
+      if (!isAuthorized) { 
+        alert("탈출 점수를 수정하려면 '전적 조회'나 '데이터 관리' 탭에서 관리자 PIN 번호 인증이 필요합니다."); 
+        return; 
+      }
+      
       if (memoryEscapeMap[name] === undefined) memoryEscapeMap[name] = 0;
       memoryEscapeMap[name] += delta;
-      if (memoryEscapeMap[name] < 0) memoryEscapeMap[name] = 0; // 최소 예외 방어
-      calculateLiveAverages(); // 갱신 후 즉시 전체 실시간 재정렬 스왑
+      if (memoryEscapeMap[name] < 0) memoryEscapeMap[name] = 0; 
+      calculateLiveAverages(); 
     }
 
     // --- 기존 Supabase 네트워크 함수 구조 완벽 보존 ---
