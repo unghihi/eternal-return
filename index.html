@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>이터널 리턴 대회 전적 스코어보드</title>
   <style>
+    /* 전체 기본 스타일 (Dark Mode) */
     *, *::before, *::after { box-sizing: border-box; }
     body { background-color: #16181d; color: #ffffff; font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; margin: 0; padding: 0; }
     header { background-color: #1f222b; padding: 20px 40px; border-bottom: 1px solid #2d3241; display: flex; justify-content: space-between; align-items: center; }
@@ -16,10 +17,10 @@
     .tab-btn.active { color: #ffffff; background-color: #313747; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
-    .pin-section { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .pin-section { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
     .pin-section label { font-size: 14px; font-weight: bold; color: #9aa0a6; }
     .pin-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 8px 12px; font-size: 14px; border-radius: 4px; width: 120px; text-align: center; }
-    .github-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 8px 12px; font-size: 13px; border-radius: 4px; flex: 1; min-width: 200px; }
+    .pin-input:focus { outline: none; border-color: #4da6ff; }
     .upload-container { background-color: #1f222b; border: 2px dashed #3d4354; border-radius: 8px; padding: 40px 20px; text-align: center; transition: border-color 0.2s; }
     .upload-container.disabled { opacity: 0.5; pointer-events: none; }
     .upload-container:not(.disabled):hover { border-color: #4da6ff; }
@@ -79,17 +80,14 @@
 
     <div id="panel-view" class="tab-panel active">
       <div class="pin-section">
-        <label for="admin-pin-view">관리자 PIN:</label>
+        <label for="admin-pin-view">관리자 인증 (삭제/리플레이 활성화):</label>
         <input type="password" id="admin-pin-view" class="pin-input" maxlength="5" placeholder="PIN 번호" oninput="checkGlobalPin()">
-        
-        <label for="gh-token">GitHub Token:</label>
-        <input type="password" id="gh-token" class="github-input" placeholder="ghp_로 시작하는 비밀 토큰 입력">
         <span id="pin-status-view" style="font-size:13px; color:#727888;">(인증 필요)</span>
       </div>
 
       <div id="match-list-container">
         <div id="empty-message" style="text-align: center; color: #727888; padding: 40px 0;">
-          데이터를 깃허브에서 불러오는 중입니다...
+          데이터베이스에서 실시간 스코어를 불러오는 중...
         </div>
       </div>
     </div>
@@ -113,88 +111,32 @@
     const MASTER_PIN = "12973";
     let isAuthorized = false;
     let globalMatchList = [];
-    let dbSha = ""; 
 
-    // 🚨 [설정 필수] 본인의 깃허브 정보로 반드시 수정하세요!
-    const REPO_OWNER = "unghihi"; 
-    const REPO_NAME = "eternal-return";
-    const FILE_PATH = "database.json";
+    // 💡 전달받으신 Supabase 고유 정보 자동 연동 완료
+    const SUPABASE_URL = "https://dcnqsgcokxvhrdjpfyyo.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__5Q68Rr_aCX_XjB855tQIQ_L1ifaMJw";
 
-    window.addEventListener('DOMContentLoaded', fetchMatchesFromGitHub);
+    // API 통신용 헤더 설정
+    const dbHeaders = {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json"
+    };
 
-    // 💡 [수정] 강제 서버 동기화 적용 (새로고침 버그 해결)
-    async function fetchMatchesFromGitHub() {
-      // 주소 뒤에 타임스탬프(?_=${Date.now()})를 붙여 깃허브 서버의 캐시(옛날파일)를 강제 차단합니다.
-      const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?_=${Date.now()}`;
+    window.addEventListener('DOMContentLoaded', fetchMatchesFromDB);
+
+    // 클라우드 DB에서 전체 매치 데이터 조회 (오래된 순부터 아래로 정렬)
+    async function fetchMatchesFromDB() {
       try {
-        const response = await fetch(url, { 
-          headers: { 
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          } 
-        });
-        
-        if (response.status === 404) {
-          globalMatchList = [];
-          renderAllMatches();
-          return;
-        }
-        
-        const data = await response.json();
-        dbSha = data.sha; // 파일 고유 식별자 저장 (덮어쓰기용 필수)
-        
-        // Base64 디코딩 및 한글 깨짐 방지 처리
-        const decodedText = decodeURIComponent(atob(data.content).split('').map(function(c) {
-            return '%' + ('0' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        globalMatchList = JSON.parse(decodedText);
-        renderAllMatches();
-      } catch (err) {
-        document.getElementById('empty-message').innerText = "깃허브 연동 정보를 확인해주세요 (상단 ID 및 REPO_NAME 수정 필요).";
-      }
-    }
-
-    // 💡 [추가] 깃허브 원격 서버에 데이터 물리적으로 저장(Commit)하는 핵심 함수
-    async function saveToGitHub(commitMessage) {
-      const token = document.getElementById('gh-token').value.trim();
-      if (!token) { alert("GitHub Token이 입력되지 않아 클라우드에 저장할 수 없습니다."); return false; }
-
-      const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
-      
-      // 유니코드 한글 안전 인코딩 후 Base64 변환
-      const utf8B64 = btoa(encodeURIComponent(JSON.stringify(globalMatchList, null, 2)).replace(/%([0-9A-F]{2})/g, function(match, p1) {
-        return String.fromCharCode('0x' + p1);
-      }));
-
-      const bodyData = {
-        message: commitMessage,
-        content: utf8B64,
-        sha: dbSha // 현재 파일의 sha 값을 같이 보내야 덮어쓰기 권한이 승인됩니다.
-      };
-
-      try {
-        const response = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `token ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(bodyData)
-        });
-        
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?order=id.asc`, { headers: dbHeaders });
         if (response.ok) {
-          const resData = await response.json();
-          dbSha = resData.content.sha; // 갱신된 파일의 새 sha 값으로 업데이트
-          return true;
+          globalMatchList = await response.json();
+          renderAllMatches();
         } else {
-          const errRes = await response.json();
-          alert("깃허브 서버 저장 실패: " + errRes.message + "\n토큰 권한 혹은 레포지토리 정보가 일치하지 않습니다.");
-          return false;
+          document.getElementById('empty-message').innerText = "데이터베이스 연동에 실패했습니다. 테이블 구성을 확인하세요.";
         }
       } catch (err) {
-        alert("인터넷 통신 장애가 발생했습니다.");
-        return false;
+        document.getElementById('empty-message').innerText = "네트워크 연결에 실패했습니다.";
       }
     }
 
@@ -206,6 +148,7 @@
         isAuthorized = true;
         document.getElementById('admin-pin-view').value = MASTER_PIN;
         document.getElementById('admin-pin-upload').value = MASTER_PIN;
+        
         document.getElementById('pin-status-view').innerText = "인증 완료";
         document.getElementById('pin-status-view').style.color = "#5bb381";
         document.getElementById('pin-status-upload').innerText = "인증 완료";
@@ -273,6 +216,7 @@
         const termScore = columns[4].trim();
         const finalScore = columns[5].trim();
 
+        // 불량 행(NaN) 스킵 필터링
         if (rankStr.toLowerCase() === 'nan' || !rankStr || rawNameField.toLowerCase() === 'nan') continue; 
 
         const rank = parseInt(rankStr);
@@ -293,61 +237,75 @@
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
         const newMatch = {
-          id: Date.now(),
           date: dateStr,
           time: timeStr,
           replayCode: "미등록",
           players: players
         };
 
-        globalMatchList.push(newMatch);
-        
-        // 💡 배열에 집어넣은 뒤 깃허브 서버로 데이터 원격 백업 전송
-        const success = await saveToGitHub("Add new match data");
-        if (success) {
-          renderAllMatches();
-          switchTab('view');
-        } else {
-          globalMatchList.pop(); // 만약 전송 실패(토큰오류 등) 시 화면 롤백
+        // DB 테이블에 밀어 넣기 (POST)
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/matches`, {
+            method: 'POST',
+            headers: dbHeaders,
+            body: JSON.stringify(newMatch)
+          });
+          
+          if (response.ok) {
+            await fetchMatchesFromDB();
+            switchTab('view');
+          } else {
+            alert("데이터베이스 저장 요청이 거부되었습니다. RLS 해제 설정을 확인하세요.");
+          }
+        } catch (err) {
+          alert("통신 장애가 발생했습니다.");
         }
       }
     }
 
+    // 아코디언 내부 리플레이 수정 전송 (PATCH)
     async function saveReplayCode(matchId) {
       if (!isAuthorized) { alert("리플레이 등록 권한이 없습니다."); return; }
       const inputElement = document.getElementById(`replay-input-${matchId}`);
       const codeValue = inputElement.value.trim();
       if (!codeValue) { alert("리플레이 코드를 입력해주세요."); return; }
 
-      const matchIndex = globalMatchList.findIndex(m => m.id === matchId);
-      if (matchIndex !== -1) {
-        const originCode = globalMatchList[matchIndex].replayCode;
-        globalMatchList[matchIndex].replayCode = codeValue;
-
-        // 💡 리플레이 코드 기입 후 깃허브 원격 백업 실행
-        const success = await saveToGitHub(`Update replay code for match ${matchId}`);
-        if (success) {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
+          method: 'PATCH',
+          headers: dbHeaders,
+          body: JSON.stringify({ replayCode: codeValue })
+        });
+        
+        if (response.ok) {
           document.getElementById(`replay-badge-${matchId}`).innerText = `🎬 Replay: ${codeValue}`;
-          alert("리플레이 코드가 클라우드 서버에 영구 저장되었습니다.");
+          alert("리플레이 코드가 클라우드 데이터베이스에 정상 수정되었습니다.");
         } else {
-          globalMatchList[matchIndex].replayCode = originCode; 
+          alert("리플레이 코드 수정 실패");
         }
+      } catch (err) {
+        alert("네트워크 통신 오류");
       }
     }
 
+    // 데이터베이스에서 특정 Row 삭제 (DELETE)
     async function deleteMatch(matchId) {
       if (!isAuthorized) { alert("삭제 권한이 없습니다."); return; }
-      if (!confirm("정말로 이 경기 기록을 삭제하시겠습니까?\n데이터베이스에서도 영구 제거됩니다.")) return;
+      if (!confirm("정말로 이 기록을 삭제하시겠습니까?\n이 주소로 접속하는 다른 모든 사람들의 화면에서도 즉시 사라집니다.")) return;
 
-      const originList = [...globalMatchList];
-      globalMatchList = globalMatchList.filter(match => match.id !== matchId);
-
-      // 💡 삭제 후 깃허브 원격 백업 반영
-      const success = await saveToGitHub(`Delete match data ${matchId}`);
-      if (success) {
-        renderAllMatches();
-      } else {
-        globalMatchList = originList; 
+      try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
+          method: 'DELETE',
+          headers: dbHeaders
+        });
+        
+        if (response.ok) {
+          await fetchMatchesFromDB();
+        } else {
+          alert("데이터 삭제에 실패했습니다.");
+        }
+      } catch (err) {
+        alert("통신 에러");
       }
     }
 
