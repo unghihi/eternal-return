@@ -3,242 +3,120 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>이터널 리턴 대회 전적 스코어보드</title>
+  <title>이터널 리턴 누적/평균 스코어보드</title>
   <style>
     /* 전체 기본 스타일 (Dark Mode) */
     *, *::before, *::after { box-sizing: border-box; }
-    body { background-color: #16181d; color: #ffffff; font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; margin: 0; padding: 0; }
-    header { background-color: #1f222b; padding: 20px 40px; border-bottom: 1px solid #2d3241; display: flex; justify-content: space-between; align-items: center; }
+    body { background-color: #0b0e14; color: #ffffff; font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; margin: 0; padding: 0; }
+    header { background-color: #111622; padding: 20px 40px; border-bottom: 1px solid #1f283d; display: flex; justify-content: space-between; align-items: center; }
     header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; color: #f1f2f4; }
-    .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-    .tab-menu { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #2d3241; padding-bottom: 8px; }
+    
+    .container { max-width: 950px; margin: 40px auto; padding: 0 20px; }
+    
+    /* 탭 메뉴 스타일 */
+    .tab-menu { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #1f283d; padding-bottom: 8px; }
     .tab-btn { background: none; border: none; color: #727888; padding: 10px 20px; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
-    .tab-btn:hover { color: #ffffff; background-color: #20222a; }
-    .tab-btn.active { color: #ffffff; background-color: #313747; }
+    .tab-btn:hover { color: #ffffff; background-color: #171f31; }
+    .tab-btn.active { color: #ffffff; background-color: #222d44; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
     
-    .pin-section { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
-    .pin-section label { font-size: 14px; font-weight: bold; color: #9aa0a6; }
-    .pin-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 8px 12px; font-size: 14px; border-radius: 4px; width: 120px; text-align: center; }
-    .pin-input:focus { outline: none; border-color: #4da6ff; }
-    
-    .upload-container { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 8px; padding: 30px; transition: border-color 0.2s; }
-    .upload-container.disabled { opacity: 0.5; pointer-events: none; }
-    
+    /* 업로드 섹션 스타일 */
+    .upload-container { background-color: #111622; border: 1px solid #1f283d; border-radius: 8px; padding: 30px; }
     .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
     .form-group label { font-size: 14px; font-weight: bold; color: #9aa0a6; }
-    .text-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 10px 14px; font-size: 14px; border-radius: 4px; width: 100%; max-width: 300px; }
-    .text-input:focus { outline: none; border-color: #4da6ff; }
-    
-    .file-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .file-row { display: flex; align-items: center; gap: 12px; }
     .file-status { font-size: 14px; color: #727888; }
-    .file-input-btn { background-color: #313747; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: 1px solid #3d4354; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
-    .file-input-btn:hover { background-color: #3d4354; }
+    .file-input-btn { background-color: #222d44; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: 1px solid #2d3b58; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+    .file-input-btn:hover { background-color: #2d3b58; }
     #csv-file { display: none; }
-    
-    .server-save-btn { background-color: #4da6ff; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; width: 100%; max-width: 200px; }
-    .server-save-btn:hover { background-color: #358ee0; }
-    
-    .match-card { background-color: #20222a; border-radius: 6px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); border-left: 6px solid #4da6ff; }
-    .match-summary { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; transition: background-color 0.2s; }
-    .match-summary:hover { background-color: #262a35; }
-    .summary-datetime-box { display: flex; flex-direction: column; gap: 4px; }
-    
-    .summary-title-text { font-size: 17px; font-weight: 800; color: #4da6ff; letter-spacing: -0.3px; }
-    .summary-date { font-size: 13px; font-weight: normal; color: #9aa0a6; }
-    .summary-time { font-size: 12px; color: #727888; }
-    
-    .summary-controls { display: flex; align-items: center; gap: 16px; }
-    .replay-badge { background-color: #2d3241; border: 1px solid #3d4354; padding: 4px 10px; border-radius: 4px; font-size: 13px; font-weight: bold; color: #4da6ff; }
-    .delete-btn { background-color: #e04a4a; color: #ffffff; border: none; padding: 6px 12px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; display: none; transition: background-color 0.2s; }
-    .delete-btn:hover { background-color: #bc3b3b; }
-    .arrow-btn { background: none; border: none; color: #727888; font-size: 14px; transition: transform 0.3s; padding: 0; cursor: pointer; }
-    .match-card.open .arrow-btn { transform: rotate(180deg); }
-    
-    .match-detail { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0, 1, 0, 1); background-color: #17191f; }
-    .match-card.open .match-detail { max-height: 2000px; transition: max-height 0.4s cubic-bezier(1, 0, 1, 0); }
-    .detail-table { padding: 10px 0; }
-    .player-row { display: flex; align-items: center; padding: 12px 24px; border-bottom: 1px solid #222531; }
-    .player-row:last-child { border-bottom: none; }
-    .rank-badge { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; margin-right: 20px; border: 2px solid #4b5265; color: #9aa0a6; }
-    
-    .player-row.r-1 { background: linear-gradient(90deg, rgba(212,175,55,0.08) 0%, rgba(0,0,0,0) 100%); border-left: 4px solid #d4af37; }
-    .player-row.r-1 .rank-badge { border-color: #d4af37; color: #d4af37; }
-    .player-row.r-2 { background: linear-gradient(90deg, rgba(77,166,255,0.08) 0%, rgba(0,0,0,0) 100%); border-left: 4px solid #4da6ff; }
-    .player-row.r-2 .rank-badge { border-color: #4da6ff; color: #4da6ff; }
-    .player-row.r-3 { background: linear-gradient(90deg, rgba(8b,179,129,0.06) 0%, rgba(0,0,0,0) 100%); border-left: 4px solid #5bb381; }
-    .player-row.r-3 .rank-badge { border-color: #5bb381; color: #5bb381; }
-    
-    .player-info { flex: 1; display: flex; flex-direction: column; }
-    .player-members { font-size: 14px; font-weight: bold; color: #ffffff; }
-    .player-team-name { font-size: 12px; color: #727888; margin-top: 3px; }
-    .player-stats-grid { display: flex; gap: 24px; font-size: 13px; text-align: right; }
-    .stat-col { width: 75px; }
-    .stat-col.total-score { font-weight: bold; color: #f1f2f4; }
-    .player-row.r-1 .stat-col.total-score { color: #d4af37; }
-    .player-row.r-2 .stat-col.total-score { color: #4da6ff; }
-    
-    .detail-replay-form { padding: 16px 24px; background-color: #1a1c24; border-top: 1px solid #2d3241; display: flex; align-items: center; gap: 12px; }
-    .replay-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 6px 12px; font-size: 13px; border-radius: 4px; width: 180px; }
-    .replay-save-btn { background-color: #313747; color: #ffffff; border: 1px solid #3d4354; padding: 6px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; }
-    .replay-save-btn:hover { background-color: #3d4354; }
 
-    /* 📊 플레이어 개인 평균 점수 탭 스타일 */
-    .stats-table { width: 100%; border-collapse: collapse; background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; overflow: hidden; }
-    .stats-table th { background-color: #2d3241; color: #9aa0a6; padding: 12px 16px; font-size: 14px; text-align: left; font-weight: bold; }
-    .stats-table td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #2d3241; color: #ffffff; }
-    .stats-table tr:last-child td { border-bottom: none; }
-    .stats-table tr:hover td { background-color: #262a35; }
-    .rank-num { font-weight: bold; color: #4da6ff; width: 60px; }
-    .text-right { text-align: right; }
+    /* 스코어보드 헤더 */
+    .board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 8px; }
+    .board-info { font-size: 13px; color: #727888; font-weight: 500; }
+
+    /* 이미지 규격 기반 스코어보드 테이블 스타일 */
+    .score-table { width: 100%; border-collapse: collapse; text-align: left; background-color: #111622; font-size: 14px; border-radius: 6px; overflow: hidden; }
+    .score-table th { padding: 14px 16px; color: #727888; font-weight: bold; border-bottom: 1px solid #1f283d; font-size: 13px; }
+    .score-table td { padding: 14px 16px; border-bottom: 1px solid #151b2a; color: #ffffff; vertical-align: middle; }
+    .score-table tr:last-child td { border-bottom: none; }
+    .score-table tr:hover td { background-color: #171f31; }
+    
+    /* 열 정렬 및 컴포넌트 규격 */
     .text-center { text-align: center; }
-    .highlight-avg { font-weight: bold; color: #ffbc42; }
+    .text-right { text-align: right; }
+    .rank-col { font-weight: 800; width: 60px; color: #ffffff; }
+    .name-col { font-weight: bold; }
+    
+    /* 탈출 카운터 조작기 스타일 */
+    .escape-control { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .escape-btn { background-color: #1f283d; color: #ffffff; border: 1px solid #2d3b58; border-radius: 3px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; font-weight: bold; user-select: none; }
+    .escape-btn:hover { background-color: #2d3b58; }
+    .escape-val { min-width: 20px; font-weight: bold; text-align: center; font-size: 13px; }
+    
+    /* 점수 및 평균 점수 지표 디자인 */
+    .score-total { font-weight: bold; font-size: 14px; color: #ffffff; width: 100px; }
+    .score-avg { font-weight: bold; font-size: 14px; color: #ffbc42; width: 110px; } 
   </style>
 </head>
 <body>
 
   <header>
-    <h1>이터널 리턴 스코어보드 시스템</h1>
+    <h1>이터널 리턴 대회 스코어 연산 시스템</h1>
   </header>
 
   <div class="container">
     <div class="tab-menu">
-      <button class="tab-btn active" onclick="switchTab('view')">전적 조회</button>
-      <button class="tab-btn" onclick="switchTab('average')">플레이어 평균 스코어</button>
-      <button class="tab-btn" onclick="switchTab('upload')">데이터 관리 (CSV/TXT)</button>
+      <button class="tab-btn active" onclick="switchTab('view')">순위 및 평균 계산기</button>
+      <button class="tab-btn" onclick="switchTab('upload')">데이터 업로드 (CSV/TXT)</button>
     </div>
 
     <div id="panel-view" class="tab-panel active">
-      <div class="pin-section">
-        <label for="admin-pin-view">관리자 인증 (삭제/리플레이 활성화):</label>
-        <input type="password" id="admin-pin-view" class="pin-input" maxlength="5" placeholder="PIN 번호" oninput="checkGlobalPin()">
-        <span id="pin-status-view" style="font-size:13px; color:#727888;">(인증 필요)</span>
+      <div class="board-header">
+        <div class="board-info" id="board-summary-text">누적 순위 · 총 0판 · 탈출 +3점/회</div>
       </div>
 
-      <div id="match-list-container">
-        <div id="empty-message" style="text-align: center; color: #727888; padding: 40px 0;">
-          데이터베이스에서 실시간 스코어를 불러오는 중...
-        </div>
-      </div>
-    </div>
-
-    <div id="panel-average" class="tab-panel">
-      <div style="margin-bottom: 16px; color: #9aa0a6; font-size: 14px;">
-        ※ 대전 데이터 내의 스쿼드 멤버들을 개별 플레이어로 분리하여 1인당 평균 획득 점수를 실시간으로 계산합니다.
-      </div>
-      <table class="stats-table">
+      <table class="score-table">
         <thead>
           <tr>
-            <th class="text-center" style="width: 70px;">순위</th>
-            <th>플레이어 닉네임</th>
-            <th class="text-right" style="width: 100px;">참가 판수</th>
-            <th class="text-right" style="width: 120px;">총 획득 점수</th>
-            <th class="text-right highlight-avg" style="width: 140px;">개인 평균 점수</th>
+            <th class="text-center" style="width: 60px;">순위</th>
+            <th>닉네임</th>
+            <th class="text-center" style="width: 80px;">판수</th>
+            <th class="text-center" style="width: 120px;">탈출</th>
+            <th class="text-right" style="width: 100px;">점수</th>
+            <th class="text-right" style="width: 120px; color: #ffbc42;">평균 점수</th>
           </tr>
         </thead>
-        <tbody id="average-stats-tbody">
+        <tbody id="score-tbody">
           <tr>
-            <td colspan="5" style="text-align: center; color: #727888; padding: 40px 0;">데이터를 불러오는 중입니다...</td>
+            <td colspan="6" style="text-align: center; color: #727888; padding: 40px 0;">
+              오른쪽 상단 '데이터 업로드' 탭에서 전적 파일을 선택해 주세요.
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <div id="panel-upload" class="tab-panel">
-      <div class="pin-section">
-        <label for="admin-pin-upload">데이터 등록 PIN 번호:</label>
-        <input type="password" id="admin-pin-upload" class="pin-input" maxlength="5" placeholder="PIN 번호" oninput="checkGlobalPin()">
-        <span id="pin-status-upload" style="font-size:13px; color:#727888;">(인증 필요)</span>
-      </div>
-
-      <div id="upload-zone" class="upload-container disabled">
+      <div class="upload-container">
         <div class="form-group">
-          <label for="upload-match-title">1. 경기 제목 입력</label>
-          <input type="text" id="upload-match-title" class="text-input" placeholder="예: 스크림 1라운드, A조 3경기">
-        </div>
-
-        <div class="form-group">
-          <label>2. 전적 파일 선택</label>
+          <label>대회 결과 파일(.csv / .txt) 선택</label>
           <div class="file-row">
             <button class="file-input-btn" onclick="document.getElementById('csv-file').click()">파일 찾기</button>
             <span id="file-name-status" class="file-status">선택된 파일 없음</span>
             <input type="file" id="csv-file" accept=".csv, .txt" onchange="handleFileSelect(this)">
           </div>
         </div>
-
-        <div class="form-group">
-          <label for="upload-replay-code">3. 해당 매치 리플레이 코드 입력 (선택)</label>
-          <input type="text" id="upload-replay-code" class="text-input" placeholder="예: 28471923 (미입력 시 '미등록')">
-        </div>
-
-        <div style="margin-top: 30px; border-top: 1px solid #2d3241; padding-top: 20px;">
-          <button class="server-save-btn" onclick="submitDataToDatabase()">4. 서버에 전적 저장</button>
+        <div style="color: #727888; font-size: 13px; line-height: 1.6;">
+          ※ 파일 데이터 정렬 규격:<br>
+          첫 줄은 컬럼명이며 두 번째 줄부터 <strong>[닉네임, 판수, 탈출 횟수, 기본 점수]</strong> 순서대로 컴마(,) 구분되어 있어야 파싱됩니다.
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const MASTER_PIN = "12973";
-    let isAuthorized = false;
-    let globalMatchList = [];
-    let parsedPlayersCache = null;
-
-    // Supabase 정보
-    const SUPABASE_URL = "https://dcnqsgcokxvhrdjpfyyo.supabase.co";
-    const SUPABASE_KEY = "sb_publishable__5Q68Rr_aCX_XjB855tQIQ_L1ifaMJw";
-
-    const dbHeaders = {
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json"
-    };
-
-    window.addEventListener('DOMContentLoaded', fetchMatchesFromDB);
-
-    async function fetchMatchesFromDB() {
-      try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?order=id.desc`, { headers: dbHeaders });
-        if (response.ok) {
-          globalMatchList = await response.json();
-          renderAllMatches();
-          calculateAndRenderAverages();
-        } else {
-          document.getElementById('empty-message').innerText = "데이터베이스 연동 실패. 테이블 설정을 확인하세요.";
-        }
-      } catch (err) {
-        document.getElementById('empty-message').innerText = "네트워크 오류가 발생했습니다.";
-      }
-    }
-
-    function checkGlobalPin() {
-      const pinView = document.getElementById('admin-pin-view').value;
-      const pinUpload = document.getElementById('admin-pin-upload').value;
-      
-      if (pinView === MASTER_PIN || pinUpload === MASTER_PIN) {
-        isAuthorized = true;
-        document.getElementById('admin-pin-view').value = MASTER_PIN;
-        document.getElementById('admin-pin-upload').value = MASTER_PIN;
-        
-        document.getElementById('pin-status-view').innerText = "인증 완료";
-        document.getElementById('pin-status-view').style.color = "#5bb381";
-        document.getElementById('pin-status-upload').innerText = "인증 완료";
-        document.getElementById('pin-status-upload').style.color = "#5bb381";
-        
-        document.getElementById('upload-zone').classList.remove('disabled');
-        document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = 'block');
-      } else {
-        isAuthorized = false;
-        document.getElementById('pin-status-view').innerText = "(인증 필요)";
-        document.getElementById('pin-status-view').style.color = "#727888";
-        document.getElementById('pin-status-upload').innerText = "(인증 필요)";
-        document.getElementById('pin-status-upload').style.color = "#727888";
-        
-        document.getElementById('upload-zone').classList.add('disabled');
-        document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = 'none');
-      }
-    }
+    let playersData = []; 
 
     function switchTab(tabId) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -247,314 +125,117 @@
       if(tabId === 'view') {
         document.querySelectorAll('.tab-btn')[0].classList.add('active');
         document.getElementById('panel-view').classList.add('active');
-      } else if(tabId === 'average') {
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('panel-average').classList.add('active');
-        calculateAndRenderAverages(); 
+        renderScoreboard();
       } else {
-        document.querySelectorAll('.tab-btn')[2].classList.add('active');
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
         document.getElementById('panel-upload').classList.add('active');
       }
     }
 
-    function toggleMatch(summaryElement, event) {
-      if (event.target.classList.contains('delete-btn')) return;
-      const card = summaryElement.parentElement;
-      card.classList.toggle('open');
-    }
-
     function handleFileSelect(input) {
-      if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
       const file = input.files[0];
       if (!file) return;
 
-      document.getElementById('file-name-status').innerText = file.name + " (분석 완료)";
-      document.getElementById('file-name-status').style.color = "#4da6ff";
+      document.getElementById('file-name-status').innerText = file.name + " (로드 완료)";
+      document.getElementById('file-name-status').style.color = "#385ec2";
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        parseTextAsCsv(e.target.result);
+        parseInputData(e.target.result);
       };
       reader.readAsText(file, 'utf-8');
     }
 
-    function parseTextAsCsv(fileText) {
-      const lines = fileText.split(/\r?\n/);
-      if (lines.length < 2) return;
-      const players = [];
+    function parseInputData(text) {
+      const lines = text.split(/\r?\n/);
+      const list = [];
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        
-        const columns = line.split(',');
-        if (columns.length < 6) continue;
 
-        const rankStr = columns[0].trim();
-        const rawNameField = columns[1].trim();
-        const rankScore = columns[2].trim();
-        const killScore = columns[3].trim();
-        const termScore = columns[4].trim();
-        const finalScore = columns[5].trim();
+        const cols = line.split(',');
+        if (cols.length < 4) continue;
 
-        if (
-          isNaN(rankStr) || 
-          !rankStr || 
-          rankStr.toLowerCase() === 'nan' || 
-          rawNameField.toLowerCase() === 'nan' || 
-          rawNameField.includes("닉네임")
-        ) {
-          continue; 
-        }
+        const nickname = cols[0].trim();
+        const matches = parseInt(cols[1].trim()) || 0;
+        const escapes = parseInt(cols[2].trim()) || 0;
+        const rawScore = parseFloat(cols[3].trim()) || 0;
 
-        const rank = parseInt(rankStr);
-        let nicknames = rawNameField;
-        let teamName = "개인 참가";
-        const teamMatch = rawNameField.match(/(.+)\s*\((.+)\)/);
-        if (teamMatch) {
-          nicknames = teamMatch[1].trim();
-          teamName = teamMatch[2].trim();
-        }
-        players.push({ rank, nicknames, teamName, rankScore, killScore, termScore, finalScore });
+        if (!nickname || nickname === "닉네임") continue;
+
+        list.push({
+          nickname: nickname,
+          matchCount: matches,
+          escapeCount: escapes,
+          baseScore: rawScore 
+        });
       }
-      players.sort((a, b) => a.rank - b.rank);
+
+      playersData = list;
+      switchTab('view'); 
+    }
+
+    function updateEscape(index, delta) {
+      if (!playersData[index]) return;
       
-      parsedPlayersCache = players;
-    }
-
-    async function submitDataToDatabase() {
-      if (!isAuthorized) { alert("PIN 번호 인증이 필요합니다."); return; }
+      let currentEscapes = playersData[index].escapeCount;
+      currentEscapes += delta;
       
-      const matchTitleValue = document.getElementById('upload-match-title').value.trim();
-      if (!matchTitleValue) { alert("경기 제목을 입력해 주세요! (예: 1라운드)"); return; }
+      if (currentEscapes < 0) currentEscapes = 0; 
       
-      if (!parsedPlayersCache || parsedPlayersCache.length === 0) { alert("전적 파일을 선택해 주세요."); return; }
-
-      const replayCodeValue = document.getElementById('upload-replay-code').value.trim() || "미등록";
-
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-
-      const newMatch = {
-        title: matchTitleValue,
-        date: dateStr,
-        time: timeStr,
-        replayCode: replayCodeValue,
-        players: parsedPlayersCache
-      };
-
-      try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches`, {
-          method: 'POST',
-          headers: dbHeaders,
-          body: JSON.stringify(newMatch)
-        });
-        
-        if (response.ok) {
-          alert("성공적으로 클라우드 데이터베이스에 저장이 완료되었습니다!");
-          
-          parsedPlayersCache = null;
-          document.getElementById('csv-file').value = "";
-          document.getElementById('upload-match-title').value = "";
-          document.getElementById('upload-replay-code').value = "";
-          document.getElementById('file-name-status').innerText = "선택된 파일 없음";
-          document.getElementById('file-name-status').style.color = "#727888";
-
-          await fetchMatchesFromDB();
-          switchTab('view');
-        } else {
-          alert("데이터베이스가 요청을 거절했습니다. 테이블에 title 열을 추가했는지 점검하세요.");
-        }
-      } catch (err) {
-        alert("통신 장애 발생");
-      }
+      playersData[index].escapeCount = currentEscapes;
+      renderScoreboard(); 
     }
 
-    async function saveReplayCode(matchId) {
-      if (!isAuthorized) { alert("리플레이 등록 권한이 없습니다."); return; }
-      const inputElement = document.getElementById(`replay-input-${matchId}`);
-      const codeValue = inputElement.value.trim();
-      if (!codeValue) { alert("리플레이 코드를 입력해주세요."); return; }
-
-      try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
-          method: 'PATCH',
-          headers: dbHeaders,
-          body: JSON.stringify({ replayCode: codeValue })
-        });
-        
-        if (response.ok) {
-          document.getElementById(`replay-badge-${matchId}`).innerText = `🎬 Replay: ${codeValue}`;
-          alert("리플레이 코드가 클라우드 데이터베이스에 실시간 기록되었습니다.");
-        } else {
-          alert("리플레이 코드 저장 실패");
-        }
-      } catch (err) {
-        alert("통신 오류 발생");
-      }
-    }
-
-    async function deleteMatch(matchId) {
-      if (!isAuthorized) { alert("삭제 권한이 없습니다."); return; }
-      if (!confirm("정말로 이 기록을 삭제하시겠습니까?\n이 주소로 접속하는 다른 모든 팀원의 화면에서도 즉시 사라집니다.")) return;
-
-      try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
-          method: 'DELETE',
-          headers: dbHeaders
-        });
-        
-        if (response.ok) {
-          await fetchMatchesFromDB();
-        } else {
-          alert("기록 삭제 실패");
-        }
-      } catch (err) {
-        alert("삭제 통신 실패");
-      }
-    }
-
-    function renderAllMatches() {
-      const container = document.getElementById('match-list-container');
-      container.innerHTML = ''; 
-
-      if (globalMatchList.length === 0) {
-        container.innerHTML = `<div id="empty-message" style="text-align: center; color: #727888; padding: 40px 0;">등록된 대전 기록이 없습니다. '데이터 관리' 탭에서 파일을 업로드해주세요.</div>`;
-        return;
-      }
-
-      globalMatchList.forEach(match => {
-        const players = match.players;
-        const matchCard = document.createElement('div');
-        matchCard.className = `match-card`;
-        matchCard.id = `match-card-${match.id}`;
-
-        const deleteBtnStyle = isAuthorized ? 'display: block;' : 'display: none;';
-        const cardTitle = match.title || `${match.date} 등록 기록`;
-
-        let summaryHtml = `
-          <div class="match-summary" onclick="toggleMatch(this, event)">
-            <div class="summary-datetime-box">
-              <div class="summary-title-text">${cardTitle}</div>
-              <div class="summary-date">${match.date} <span class="summary-time">(${match.time})</span></div>
-            </div>
-            <div class="summary-controls">
-              <div class="replay-badge" id="replay-badge-${match.id}">🎬 Replay: ${match.replayCode}</div>
-              <button class="delete-btn" style="${deleteBtnStyle}" onclick="deleteMatch(${match.id})">기록 삭제</button>
-              <button class="arrow-btn">▼</button>
-            </div>
-          </div>
-        `;
-
-        let detailHtml = `<div class="match-detail"><div class="detail-table">`;
-        players.forEach(p => {
-          let rankRowClass = `r-${p.rank}`;
-          if (p.rank > 3) rankRowClass = 'r-any';
-
-          if(p.nicknames === "닉네임") return;
-
-          detailHtml += `
-            <div class="player-row ${rankRowClass}">
-              <div class="rank-badge">${p.rank}</div>
-              <div class="player-info">
-                <div class="player-members">${p.nicknames}</div>
-                <div class="player-team-name">${p.teamName}</div>
-              </div>
-              <div class="player-stats-grid">
-                <div class="stat-col"><span style="color:#727888">순위</span><br>${p.rankScore}</div>
-                <div class="stat-col"><span style="color:#727888">팀킬</span><br>${p.killScore}</div>
-                <div class="stat-col"><span style="color:#727888">터미</span><br>${p.termScore}</div>
-                <div class="stat-col total-score"><span style="color:#727888">최종</span><br>${p.finalScore}</div>
-              </div>
-            </div>
-          `;
-        });
-        detailHtml += `</div>`;
-
-        const currentInputValue = match.replayCode === "미등록" ? "" : match.replayCode;
-        detailHtml += `
-          <div class="detail-replay-form">
-            <label style="font-size:13px; font-weight:bold; color:#9aa0a6;">리플레이 코드 관리 :</label>
-            <input type="text" id="replay-input-${match.id}" class="replay-input" placeholder="코드 번호 입력" value="${currentInputValue}">
-            <button class="replay-save-btn" onclick="saveReplayCode(${match.id})">코드 저장</button>
-          </div>
-        `;
-        detailHtml += `</div>`;
-
-        matchCard.innerHTML = summaryHtml + detailHtml;
-        container.appendChild(matchCard);
-      });
-    }
-
-    // 📊 [수정된 함수] 플레이어 단위로 완전히 쪼개서 실시간 평균 스코어를 연산하는 뷰 로직
-    function calculateAndRenderAverages() {
-      const tbody = document.getElementById('average-stats-tbody');
+    function renderScoreboard() {
+      const tbody = document.getElementById('score-tbody');
       if (!tbody) return;
 
-      if (globalMatchList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #727888; padding: 40px 0;">누적된 데이터가 없어 평균 스코어를 산출할 수 없습니다.</td></tr>`;
+      if (playersData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #727888; padding: 40px 0;">데이터가 비어 있습니다. 파일을 업로드해 주세요.</td></tr>`;
         return;
       }
 
-      const playerStatsMap = {};
+      const calculatedList = playersData.map((p, idx) => {
+        const finalTotalScore = p.baseScore + (p.escapeCount * 3);
+        const averageScore = p.matchCount > 0 ? (finalTotalScore / p.matchCount) : 0;
 
-      globalMatchList.forEach(match => {
-        if (!match.players || !Array.isArray(match.players)) return;
-        
-        match.players.forEach(p => {
-          if (p.nicknames === "닉네임") return;
-          
-          // 💡 핵심: 닉네임 문자열에 여러 명(예: 공룡,토끼,사자)이 있을 수 있으므로 공백/특수문자를 정제하고 쪼갭니다.
-          // 일반적으로 이터널 리턴 스쿼드 전적은 쉼표나 슬래시, 혹은 공백으로 구분되므로 정규식을 사용하여 플레이어를 분리합니다.
-          const singleNames = p.nicknames.split(/[,/|\s]+/).map(name => name.trim()).filter(name => name.length > 0);
-          const score = parseFloat(p.finalScore) || 0;
-
-          singleNames.forEach(name => {
-            if (!playerStatsMap[name]) {
-              playerStatsMap[name] = {
-                playerName: name,
-                totalScore: 0,
-                matchCount: 0
-              };
-            }
-            // 스쿼드가 획득한 총점을 멤버들이 각각 동일하게 부여받아 누적 연산합니다.
-            playerStatsMap[name].totalScore += score;
-            playerStatsMap[name].matchCount += 1;
-          });
-        });
-      });
-
-      // Map 오브젝트를 배열 리스트로 변환하고 플레이어별 1판당 평균 점수 산출
-      const playerStatsList = Object.keys(playerStatsMap).map(key => {
-        const player = playerStatsMap[key];
-        const avg = player.matchCount > 0 ? (player.totalScore / player.matchCount) : 0;
         return {
-          ...player,
-          averageScore: avg
+          originalIndex: idx,
+          nickname: p.nickname,
+          matchCount: p.matchCount,
+          escapeCount: p.escapeCount,
+          totalScore: finalTotalScore,
+          averageScore: averageScore
         };
       });
 
-      // 평균 점수가 높은 순으로 내림차순 정렬
-      playerStatsList.sort((a, b) => b.averageScore - a.averageScore);
+      // 평균 점수 기준 내림차순 정렬 규칙 적용
+      calculatedList.sort((a, b) => b.averageScore - a.averageScore);
 
-      // HTML 데이터 동적 생성 및 출력
+      const totalMatchesArray = playersData.map(p => p.matchCount);
+      const maxMatchCount = totalMatchesArray.length > 0 ? Math.max(...totalMatchesArray) : 0;
+      document.getElementById('board-summary-text').innerText = `누적 순위 · 총 ${maxMatchCount}판 기준 연산 · 탈출 +3점/회`;
+
       tbody.innerHTML = '';
-      if (playerStatsList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #727888; padding: 40px 0;">분석할 수 있는 유효한 플레이어 기록이 없습니다.</td></tr>`;
-        return;
-      }
-
-      playerStatsList.forEach((player, index) => {
-        const rank = index + 1;
+      calculatedList.forEach((p, idx) => {
+        const rank = idx + 1;
         const row = document.createElement('tr');
-        
+
         row.innerHTML = `
-          <td class="text-center rank-num">${rank}</td>
-          <td><div style="font-weight:bold; color:#fff;">${player.playerName}</div></td>
-          <td class="text-right" style="color:#9aa0a6;">${player.matchCount} 판</td>
-          <td class="text-right" style="font-weight:500;">${player.totalScore} 점</td>
-          <td class="text-right highlight-avg">${player.averageScore.toFixed(2)} 점</td>
+          <td class="text-center rank-col">${rank}</td>
+          <td class="name-col">${p.nickname}</td>
+          <td class="text-center">${p.matchCount}</td>
+          <td class="text-center">
+            <div class="escape-control">
+              <div class="escape-btn" onclick="updateEscape(${p.originalIndex}, -1)">-</div>
+              <div class="escape-val">${p.escapeCount}</div>
+              <div class="escape-btn" onclick="updateEscape(${p.originalIndex}, 1)">+</div>
+            </div>
+          </td>
+          <td class="text-right score-total">${p.totalScore.toFixed(1)}</td>
+          <td class="text-right score-avg">${p.averageScore.toFixed(2)}</td>
         `;
         tbody.appendChild(row);
       });
