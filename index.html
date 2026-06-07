@@ -17,10 +17,13 @@
     .tab-btn.active { color: #ffffff; background-color: #313747; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
+    
+    /* PIN 인증 폼 스타일 (토큰 칸이 빠져서 컴팩트해짐) */
     .pin-section { background-color: #1f222b; border: 1px solid #2d3241; border-radius: 6px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
     .pin-section label { font-size: 14px; font-weight: bold; color: #9aa0a6; }
     .pin-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 8px 12px; font-size: 14px; border-radius: 4px; width: 120px; text-align: center; }
     .pin-input:focus { outline: none; border-color: #4da6ff; }
+    
     .upload-container { background-color: #1f222b; border: 2px dashed #3d4354; border-radius: 8px; padding: 40px 20px; text-align: center; transition: border-color 0.2s; }
     .upload-container.disabled { opacity: 0.5; pointer-events: none; }
     .upload-container:not(.disabled):hover { border-color: #4da6ff; }
@@ -28,6 +31,7 @@
     .file-input-btn { background-color: #4da6ff; color: #ffffff; padding: 10px 20px; font-size: 14px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
     .file-input-btn:hover { background-color: #358ee0; }
     #csv-file { display: none; }
+    
     .match-card { background-color: #20222a; border-radius: 6px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); border-left: 6px solid #4da6ff; }
     .match-summary { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; transition: background-color 0.2s; }
     .match-summary:hover { background-color: #262a35; }
@@ -40,18 +44,21 @@
     .delete-btn:hover { background-color: #bc3b3b; }
     .arrow-btn { background: none; border: none; color: #727888; font-size: 14px; transition: transform 0.3s; padding: 0; cursor: pointer; }
     .match-card.open .arrow-btn { transform: rotate(180deg); }
+    
     .match-detail { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0, 1, 0, 1); background-color: #17191f; }
     .match-card.open .match-detail { max-height: 2000px; transition: max-height 0.4s cubic-bezier(1, 0, 1, 0); }
     .detail-table { padding: 10px 0; }
     .player-row { display: flex; align-items: center; padding: 12px 24px; border-bottom: 1px solid #222531; }
     .player-row:last-child { border-bottom: none; }
     .rank-badge { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; margin-right: 20px; border: 2px solid #4b5265; color: #9aa0a6; }
+    
     .player-row.r-1 { background: linear-gradient(90deg, rgba(212,175,55,0.08) 0%, rgba(0,0,0,0) 100%); border-left: 4px solid #d4af37; }
     .player-row.r-1 .rank-badge { border-color: #d4af37; color: #d4af37; }
     .player-row.r-2 { background: linear-gradient(90deg, rgba(77,166,255,0.08) 0%, rgba(0,0,0,0) 100%); border-left: 4px solid #4da6ff; }
     .player-row.r-2 .rank-badge { border-color: #4da6ff; color: #4da6ff; }
     .player-row.r-3 { background: linear-gradient(90deg, rgba(8b,179,129,0.06) 0%, rgba(0,0,0,0) 100%); border-left: 4px solid #5bb381; }
     .player-row.r-3 .rank-badge { border-color: #5bb381; color: #5bb381; }
+    
     .player-info { flex: 1; display: flex; flex-direction: column; }
     .player-members { font-size: 14px; font-weight: bold; color: #ffffff; }
     .player-team-name { font-size: 12px; color: #727888; margin-top: 3px; }
@@ -60,6 +67,7 @@
     .stat-col.total-score { font-weight: bold; color: #f1f2f4; }
     .player-row.r-1 .stat-col.total-score { color: #d4af37; }
     .player-row.r-2 .stat-col.total-score { color: #4da6ff; }
+    
     .detail-replay-form { padding: 16px 24px; background-color: #1a1c24; border-top: 1px solid #2d3241; display: flex; align-items: center; gap: 12px; }
     .replay-input { background-color: #16181d; border: 1px solid #3d4354; color: #ffffff; padding: 6px 12px; font-size: 13px; border-radius: 4px; width: 180px; }
     .replay-save-btn { background-color: #313747; color: #ffffff; border: 1px solid #3d4354; padding: 6px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; }
@@ -112,11 +120,10 @@
     let isAuthorized = false;
     let globalMatchList = [];
 
-    // 💡 전달받으신 Supabase 고유 정보 자동 연동 완료
+    // Supabase 연동 정보
     const SUPABASE_URL = "https://dcnqsgcokxvhrdjpfyyo.supabase.co";
     const SUPABASE_KEY = "sb_publishable__5Q68Rr_aCX_XjB855tQIQ_L1ifaMJw";
 
-    // API 통신용 헤더 설정
     const dbHeaders = {
       "apikey": SUPABASE_KEY,
       "Authorization": `Bearer ${SUPABASE_KEY}`,
@@ -125,7 +132,7 @@
 
     window.addEventListener('DOMContentLoaded', fetchMatchesFromDB);
 
-    // 클라우드 DB에서 전체 매치 데이터 조회 (오래된 순부터 아래로 정렬)
+    // DB 데이터 로드
     async function fetchMatchesFromDB() {
       try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?order=id.asc`, { headers: dbHeaders });
@@ -133,13 +140,14 @@
           globalMatchList = await response.json();
           renderAllMatches();
         } else {
-          document.getElementById('empty-message').innerText = "데이터베이스 연동에 실패했습니다. 테이블 구성을 확인하세요.";
+          document.getElementById('empty-message').innerText = "데이터베이스 연동 실패. 테이블 설정을 확인하세요.";
         }
       } catch (err) {
-        document.getElementById('empty-message').innerText = "네트워크 연결에 실패했습니다.";
+        document.getElementById('empty-message').innerText = "네트워크 오류가 발생했습니다.";
       }
     }
 
+    // PIN 번호 검증 (토큰 검사 로직 완전히 들어냄)
     function checkGlobalPin() {
       const pinView = document.getElementById('admin-pin-view').value;
       const pinUpload = document.getElementById('admin-pin-upload').value;
@@ -216,7 +224,6 @@
         const termScore = columns[4].trim();
         const finalScore = columns[5].trim();
 
-        // 불량 행(NaN) 스킵 필터링
         if (rankStr.toLowerCase() === 'nan' || !rankStr || rawNameField.toLowerCase() === 'nan') continue; 
 
         const rank = parseInt(rankStr);
@@ -243,7 +250,6 @@
           players: players
         };
 
-        // DB 테이블에 밀어 넣기 (POST)
         try {
           const response = await fetch(`${SUPABASE_URL}/rest/v1/matches`, {
             method: 'POST',
@@ -255,15 +261,15 @@
             await fetchMatchesFromDB();
             switchTab('view');
           } else {
-            alert("데이터베이스 저장 요청이 거부되었습니다. RLS 해제 설정을 확인하세요.");
+            alert("DB 저장 실패. Supabase 테이블 설정을 확인하세요.");
           }
         } catch (err) {
-          alert("통신 장애가 발생했습니다.");
+          alert("통신 장애 발생");
         }
       }
     }
 
-    // 아코디언 내부 리플레이 수정 전송 (PATCH)
+    // 리플레이 코드 DB 저장 (토큰 없이 PIN 인증만으로 처리)
     async function saveReplayCode(matchId) {
       if (!isAuthorized) { alert("리플레이 등록 권한이 없습니다."); return; }
       const inputElement = document.getElementById(`replay-input-${matchId}`);
@@ -279,19 +285,19 @@
         
         if (response.ok) {
           document.getElementById(`replay-badge-${matchId}`).innerText = `🎬 Replay: ${codeValue}`;
-          alert("리플레이 코드가 클라우드 데이터베이스에 정상 수정되었습니다.");
+          alert("리플레이 코드가 클라우드 데이터베이스에 실시간 기록되었습니다.");
         } else {
-          alert("리플레이 코드 수정 실패");
+          alert("리플레이 코드 저장 실패");
         }
       } catch (err) {
-        alert("네트워크 통신 오류");
+        alert("통신 오류 발생");
       }
     }
 
-    // 데이터베이스에서 특정 Row 삭제 (DELETE)
+    // 매치 데이터 삭제 (토큰 없이 PIN 인증만으로 처리)
     async function deleteMatch(matchId) {
       if (!isAuthorized) { alert("삭제 권한이 없습니다."); return; }
-      if (!confirm("정말로 이 기록을 삭제하시겠습니까?\n이 주소로 접속하는 다른 모든 사람들의 화면에서도 즉시 사라집니다.")) return;
+      if (!confirm("정말로 이 기록을 삭제하시겠습니까?\n이 주소로 접속하는 다른 모든 팀원의 화면에서도 즉시 사라집니다.")) return;
 
       try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/matches?id=eq.${matchId}`, {
@@ -302,10 +308,10 @@
         if (response.ok) {
           await fetchMatchesFromDB();
         } else {
-          alert("데이터 삭제에 실패했습니다.");
+          alert("기록 삭제 실패");
         }
       } catch (err) {
-        alert("통신 에러");
+        alert("삭제 통신 실패");
       }
     }
 
