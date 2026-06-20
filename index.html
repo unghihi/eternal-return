@@ -302,12 +302,12 @@
         const columns = line.split(',');
         if (columns.length < 6) continue;
 
-        const rankStr = columns[0].trim();
-        const rawNameField = columns[1].trim();
-        const rankScore = columns[2].trim();
-        const killScore = columns[3].trim();
-        const termScore = columns[4].trim();
-        const finalScore = columns[5].trim();
+        const rankStr      = columns[0].trim();
+        const rawNameField = columns[5].trim();
+        const rankScore    = columns[21].trim();
+        const killScore    = columns[22].trim();
+        const termScore    = columns[17].trim();
+        const finalScore   = columns[20].trim();
 
         if (
           isNaN(rankStr) || 
@@ -320,8 +320,8 @@
         }
 
         const rank = parseInt(rankStr);
-        let nicknames = rawNameField;
-        let teamName = "개인 참가";
+        let nicknames = columns[3].trim();
+        let teamName = columns[19].trim();
         const teamMatch = rawNameField.match(/(.+)\s*\((.+)\)/);
         if (teamMatch) {
           nicknames = teamMatch[1].trim();
@@ -558,7 +558,7 @@
               <div class="player-stats-grid">
                 <div class="stat-col"><span style="color:#727888">순위</span><br>${p.rankScore}</div>
                 <div class="stat-col"><span style="color:#727888">팀킬</span><br>${p.killScore}</div>
-                <div class="stat-col"><span style="color:#727888">터미</span><br>${p.termScore}</div>
+                <div class="stat-col"><span style="color:#727888">사망원인</span><br>${p.termScore}</div>
                 <div class="stat-col total-score"><span style="color:#727888">최종</span><br>${p.finalScore}</div>
               </div>
             </div>
